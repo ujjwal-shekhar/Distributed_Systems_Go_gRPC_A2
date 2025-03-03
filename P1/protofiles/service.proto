@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package service;
+option go_package = "p1/protofiles/service";
+
+service LoadBalancer {
+    rpc ProcessClientRequest (ClientRequest) returns (ServerInfo) {}
+    rpc ProcessServerHeartbeat (ServerInfo) returns (ServerReply) {}
+}
+
+service TaskRunner {
+    rpc RunTask (ClientRequest) returns (ServerReply) {}
+}
+
+message ClientRequest {
+    int32 load = 1;
+}
+
+message ServerInfo {
+    string address = 1;
+    float cpu_load = 2;
+    int32 total_load = 3; 
+}
+
+message ServerReply {
+    bool success = 1;
+}
