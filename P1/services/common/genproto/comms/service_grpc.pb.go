@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v4.25.3
-// source: protofiles/service.proto
+// source: service.proto
 
-package service
+package load_balancer
 
 import (
 	context "context"
@@ -19,8 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	LoadBalancer_ProcessClientRequest_FullMethodName   = "/service.LoadBalancer/ProcessClientRequest"
-	LoadBalancer_ProcessServerHeartbeat_FullMethodName = "/service.LoadBalancer/ProcessServerHeartbeat"
+	LoadBalancer_ProcessClientRequest_FullMethodName   = "/LoadBalancer/ProcessClientRequest"
+	LoadBalancer_ProcessServerHeartbeat_FullMethodName = "/LoadBalancer/ProcessServerHeartbeat"
 )
 
 // LoadBalancerClient is the client API for LoadBalancer service.
@@ -142,7 +142,7 @@ func _LoadBalancer_ProcessServerHeartbeat_Handler(srv interface{}, ctx context.C
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var LoadBalancer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "service.LoadBalancer",
+	ServiceName: "LoadBalancer",
 	HandlerType: (*LoadBalancerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -155,11 +155,11 @@ var LoadBalancer_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "protofiles/service.proto",
+	Metadata: "service.proto",
 }
 
 const (
-	TaskRunner_RunTask_FullMethodName = "/service.TaskRunner/RunTask"
+	TaskRunner_RunTask_FullMethodName = "/TaskRunner/RunTask"
 )
 
 // TaskRunnerClient is the client API for TaskRunner service.
@@ -248,7 +248,7 @@ func _TaskRunner_RunTask_Handler(srv interface{}, ctx context.Context, dec func(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var TaskRunner_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "service.TaskRunner",
+	ServiceName: "TaskRunner",
 	HandlerType: (*TaskRunnerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -257,5 +257,5 @@ var TaskRunner_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "protofiles/service.proto",
+	Metadata: "service.proto",
 }

@@ -1,7 +1,6 @@
 syntax = "proto3";
 
-package service;
-option go_package = "p1/protofiles/service";
+option go_package = "github.com/ujjwal-shekhar/common/load_balancer";
 
 service LoadBalancer {
     rpc ProcessClientRequest (ClientRequest) returns (ServerInfo) {}
@@ -17,9 +16,9 @@ message ClientRequest {
 }
 
 message ServerInfo {
-    string address = 1;
+    string address = 1; 
     float cpu_load = 2;
-    int32 total_load = 3; 
+    int32 task_load = 3; 
 }
 
 message ServerReply {
