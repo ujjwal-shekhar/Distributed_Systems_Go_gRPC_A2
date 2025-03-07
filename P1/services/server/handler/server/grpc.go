@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	"go.etcd.io/etcd/client/v3"
 
 	pb "github.com/ujjwal-shekhar/load_balancer/services/common/genproto/comms"
 	"github.com/ujjwal-shekhar/load_balancer/services/common/utils/constants"
+	"github.com/ujjwal-shekhar/load_balancer/services/server/handler/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -20,9 +22,10 @@ type Server struct {
 	etcdClient *clientv3.Client
 	lbClient   pb.LoadBalancerClient
 
-	Address    string
-	TaskLoad   int32
-	leaseID    clientv3.LeaseID
+	Address  string
+	TaskLoad int32
+	leaseID  clientv3.LeaseID
+	mu       sync.Mutex
 }
 
 // NewServer initializes a new backend server.
@@ -69,7 +72,7 @@ func NewServer() (*Server, net.Listener) {
 		if err != nil {
 			log.Fatalf("Failed to keep lease alive: %v", err)
 		}
-	
+
 		for ka := range keepAliveChan {
 			if ka == nil {
 				log.Println("Lease expired!")
@@ -97,7 +100,7 @@ func (s *Server) SendHeartbeats() {
 	for range ticker.C {
 		_, err := s.lbClient.ProcessServerHeartbeat(context.Background(), &pb.ServerInfo{
 			Address:  s.Address,
-			CpuLoad:  s.CpuLoad,
+			CpuLoad: utils.GetCPULoad(),
 			TaskLoad: s.TaskLoad,
 		})
 
@@ -108,7 +111,22 @@ func (s *Server) SendHeartbeats() {
 }
 
 func (s *Server) RunTask(ctx context.Context, req *pb.ClientRequest) (*pb.ServerReply, error) {
+	s.mu.Lock()
 	s.TaskLoad++
-	s.
-	return &pb.ServerReply{Address: s.Address}, nil
+	s.mu.Unlock()
+
+	log.Printf("Starting task on %s (current TaskLoad: %d)", s.Address, s.TaskLoad)
+
+	// Run FakeTask in a new goroutine
+	go func() {
+		utils.FakeTask(req.Load)
+
+		s.mu.Lock()
+		s.TaskLoad--
+		s.mu.Unlock()
+
+		log.Printf("Finished task on %s (current TaskLoad: %d)", s.Address, s.TaskLoad)
+	}()
+
+	return &pb.ServerReply{Success : true}, nil
 }
