@@ -2,72 +2,109 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
+	"errors"
 
-	"github.com/ujjwal-shekhar/load_balancer/services/common/genproto/comms"
+	"go.etcd.io/etcd/client/v3"
+
+	pb "github.com/ujjwal-shekhar/load_balancer/services/common/genproto/comms"
 	"github.com/ujjwal-shekhar/load_balancer/services/lb_server/handler/utils"
+	"github.com/ujjwal-shekhar/load_balancer/services/common/utils/constants"
 )
 
-// LoadBalancer struct with a dynamic policy function
+// LoadBalancer struct
 type LoadBalancer struct {
-	load_balancer.UnimplementedLoadBalancerServer
+	pb.UnimplementedLoadBalancerServer
+	etcdClient *clientv3.Client
 
-	mu      			sync.Mutex
-	servers 			map[string]*utils.ServerMetadata
-	policy  			utils.ServerSelectionPolicy
+	mu      sync.Mutex
+	servers map[string]*pb.ServerInfo
+	policy  utils.ServerSelectionPolicy
 }
 
-// NewLoadBalancer creates a new LoadBalancer instance with a given policy.
+// NewLoadBalancer initializes the Load Balancer
 func NewLoadBalancer(policyName string) *LoadBalancer {
-	var policyFunc utils.ServerSelectionPolicy
-	switch policyName {
-	case "pick_first":
-		policyFunc = utils.PickFirst
-	case "least_loaded":
-		policyFunc = utils.LeastLoaded
-	case "round_robin":
-		policyFunc = utils.RoundRobin
-	default:
-		policyFunc = utils.LeastLoaded
+	policyFunc := utils.GetPolicy(policyName)
+
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{constants.ETCD_ENDPOINT},
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		log.Fatalf("Failed to connect to etcd: %v", err)
 	}
 
-	return &LoadBalancer{
-		servers: make(map[string]*utils.ServerMetadata),
-		policy:  policyFunc,
+	lb := &LoadBalancer{
+		servers:    make(map[string]*pb.ServerInfo),
+		policy:     policyFunc,
+		etcdClient: cli,
+	}
+
+	// Start watching etcd lease events
+	go lb.watchEtcdLeases()
+
+	return lb
+}
+
+// Watch etcd for lease events (renewals + expirations)
+func (lb *LoadBalancer) watchEtcdLeases() {
+	watchChan := lb.etcdClient.Watch(context.Background(), constants.ETCD_SERVERS_PREFIX, clientv3.WithPrefix())
+
+	for watchResp := range watchChan {
+		for _, ev := range watchResp.Events {
+			serverAddr := string(ev.Kv.Key[len(constants.ETCD_SERVERS_PREFIX):])
+
+			if ev.Type == clientv3.EventTypeDelete {
+				// Lease expired -> Remove from servers
+				lb.mu.Lock()
+				delete(lb.servers, serverAddr)
+				lb.mu.Unlock()
+				log.Printf("Server %s removed (lease expired)", serverAddr)
+			} else if ev.Type == clientv3.EventTypePut {
+				log.Printf("Server %s lease renewed", serverAddr)
+				lb.mu.Lock()
+				lb.servers[serverAddr] = &pb.ServerInfo{Address: serverAddr}
+				lb.mu.Unlock()
+
+				// print all servers
+				lb.mu.Lock()
+				log.Println("Current servers:", len(lb.servers))
+				for addr, server := range lb.servers {
+					log.Printf("Server: %s, CPU Load: %f, Task Load: %d", addr, server.CpuLoad, server.TaskLoad)
+				}
+				lb.mu.Unlock()
+			}
+
+			// print event type
+			log.Printf("Event Type: %v", ev.Type)
+		}
 	}
 }
 
-// ProcessClientRequest selects the best server based on the configured policy.
-func (lb *LoadBalancer) ProcessClientRequest(ctx context.Context, req *load_balancer.ClientRequest) (*load_balancer.ServerInfo, error) {
+func (lb* LoadBalancer) ProcessServerHeartbeat(ctx context.Context, req *pb.ServerInfo) (*pb.ServerReply, error) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 
-	bestServer := lb.policy(lb.servers) // Use the selected policy function
-	if bestServer == nil {
-		return nil, fmt.Errorf("no available servers")
-	}
+	serverAddr := req.Address
+	lb.servers[serverAddr] = req
 
-	return bestServer, nil
-}
-
-// ProcessServerHeartbeat updates the server metadata.
-func (lb* LoadBalancer) ProcessServerHeartbeat (ctx context.Context, req *load_balancer.ServerInfo) (*load_balancer.ServerReply, error) {
-	lb.mu.Lock()
-	defer lb.mu.Unlock()
-
-	lb.servers[req.Address] = &utils.ServerMetadata{
-		Info:        req,
-		LastUpdated: time.Now(),
-	}
-
-	rep := &load_balancer.ServerReply{
+	log.Printf("Received heartbeat from server %s", serverAddr)
+	return &pb.ServerReply{
 		Success: true,
+	}, nil
+}
+
+func (lb *LoadBalancer) ProcessClientRequest(ctx context.Context, req *pb.ClientRequest) (*pb.ServerInfo, error) {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+
+	server := lb.policy(lb.servers)
+	if server == nil {
+		return nil, errors.New("no servers available")
 	}
 
-	log.Printf("Received heartbeat from server: %s", req.Address)
-
-	return rep, nil
+	log.Printf("Selected server: %s", server.Address)
+	return server, nil
 }

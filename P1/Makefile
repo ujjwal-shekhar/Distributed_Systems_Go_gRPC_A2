@@ -1,5 +1,5 @@
 run-client:
-	@go run services/client/*.go
+	@go run services/client/*.go $(ARGS)
 
 run-server:
 	@go run services/server/*.go

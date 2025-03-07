@@ -13,7 +13,7 @@ import (
 )
 
 func StartLBServer() {
-	lis, err := net.Listen("tcp", constants.PORT)
+	lis, err := net.Listen("tcp", constants.LB_PORT)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
@@ -22,9 +22,9 @@ func StartLBServer() {
 	loadBalancer := handler.NewLoadBalancer("least_loaded")
 	pb.RegisterLoadBalancerServer(grpcServer, loadBalancer)
 
-	reflection.Register(grpcServer) // DBG
+	reflection.Register(grpcServer)
 
-	log.Println("Load balancer gRPC server is running on port {constants.PORT}")
+	log.Printf("Load balancer gRPC server is running on port %s", constants.LB_PORT)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
