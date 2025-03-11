@@ -1,8 +1,8 @@
 run-client:
-	@go run services/client/*.go $(ARGS)
+	@go run services/client/*.go -M=$(M) -R=$(R) -T=$(T)
 
 run-server:
-	@go run services/server/*.go
+	@go run services/server/*.go -TYPE=$(TYPE) -PORT=$(PORT)
 
 gen:
 	@protoc \

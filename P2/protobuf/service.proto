@@ -1,0 +1,15 @@
+syntax="proto3";
+
+option go_package = "github.com/ujjwal-shekhar/common/mapreduce";
+import "google/protobuf/empty.proto";
+
+service FileTransfer {
+    rpc FileUpload(stream FileChunk) returns (google.protobuf.Empty) {}
+    rpc FileDownload(google.protobuf.Empty) returns (stream FileChunk) {}
+}
+
+message FileChunk {
+    bytes chunk = 1;
+    int32 chunkNumber = 2;
+    string fileName = 3;
+}
