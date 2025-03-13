@@ -1,0 +1,70 @@
+syntax="proto3";
+
+package services.common.genproto.comms;
+import "google/protobuf/descriptor.proto";
+option go_package = "github.com/ujjwal-shekhar/common/stripe-clone";
+
+enum Role {
+  UNSPECIFIED = 0;
+  CUSTOMER = 1;
+  ADMIN = 2;
+  BANK = 3;
+  GATEWAY = 4;
+}
+
+message RBAC {
+  repeated Role allowed_roles = 1;
+  bool allow_unauthenticated = 2;
+}
+
+extend google.protobuf.MethodOptions {
+  optional RBAC access_control = 90000;
+}
+
+///////////////////////////
+service StripeService {
+  rpc ClientLogin(ClientLoginRequest) returns (ClientSessionResponse) {
+    option (services.common.genproto.comms.access_control) = {
+      allowed_roles: [],
+      allow_unauthenticated: true
+    };
+  }
+
+  rpc BankRegister(BankRegistrationRequest) returns (BankRegistrationResponse) {
+    option (services.common.genproto.comms.access_control) = {
+      allowed_roles: [],
+      allow_unauthenticated: true
+    };
+  }
+}
+
+message ClientLoginRequest {
+  string username = 1;
+  string bankname = 2;
+  string password = 3; // We have used mTLS so its lite
+}
+
+message ClientSessionResponse {
+  string token = 1; // JWT token be goin here
+  bool success = 2;
+  string role = 3;
+}
+
+message BankRegistrationRequest {
+  string bankname = 1;
+  string address = 2;
+}
+
+message BankRegistrationResponse {
+  bool success = 1;
+}
+
+///////////////////////////
+service BankService {
+  rpc GetClientSession(ClientLoginRequest) returns (ClientSessionResponse) {
+    option (services.common.genproto.comms.access_control) = {
+      allowed_roles: [GATEWAY],
+      allow_unauthenticated: false
+    };
+  }
+}
