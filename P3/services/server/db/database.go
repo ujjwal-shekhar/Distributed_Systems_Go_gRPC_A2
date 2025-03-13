@@ -48,3 +48,15 @@ func VerifyClientCredentials (username string, password string) (string, bool, e
 
 	return role, auth.ComparePasswords(hashedPassword, password), nil
 }
+
+func GetBalance(username string) (int, error) {
+	log.Printf("Getting balance for user: %s\n", username)
+
+	var balance int
+	err := DB.QueryRow("SELECT balance FROM users WHERE username = ?", username).Scan(&balance)
+	if err != nil {
+		return 0, err
+	}
+
+	return balance, nil
+}

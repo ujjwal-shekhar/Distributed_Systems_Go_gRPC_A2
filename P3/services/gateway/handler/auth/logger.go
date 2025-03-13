@@ -19,9 +19,9 @@ func LoggerUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	// Log completion with execution time and error (if any)
 	duration := time.Since(start)
 	if err != nil {
-		log.Printf("[gRPC] Method: %s - Failed (%s) - Error: %v", info.FullMethod, duration, err)
+		log.Printf("[gRPC] Method: %s - Failed in (%s) - Error: %v", info.FullMethod, duration, err)
 	} else {
-		log.Printf("[gRPC] Method: %s - Completed (%s)", info.FullMethod, duration)
+		log.Printf("[gRPC] Method: %s - Completed in (%s)", info.FullMethod, duration)
 	}
 
 	return resp, err

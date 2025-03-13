@@ -12,16 +12,18 @@ const (
 // Claims struct to include username and role
 type Claims struct {
 	Username string `json:"username"`
+	Bankname string `json:"bankname"`
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
 
 // GenerateJWT generates a JWT token for the user
-func GenerateJWT(username string, role string) (string, error) {
+func GenerateJWT(username string, bankname string, role string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour) // Token valid for 24 hours
 
 	claims := &Claims{
 		Username: username,
+		Bankname: bankname,
 		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),

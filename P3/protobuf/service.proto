@@ -36,6 +36,13 @@ service StripeService {
       allow_unauthenticated: true
     };
   }
+
+  rpc CheckBalance(CheckBalanceRequest) returns (CheckBalanceResponse) {
+    option (services.common.genproto.comms.access_control) = {
+      allowed_roles: [CUSTOMER, ADMIN],
+      allow_unauthenticated: false
+    };
+  }
 }
 
 message ClientLoginRequest {
@@ -59,12 +66,19 @@ message BankRegistrationResponse {
   bool success = 1;
 }
 
+message CheckBalanceRequest {
+  string username = 1;
+  string bankname = 2;
+  string token = 3;
+}
+
+message CheckBalanceResponse {
+  int32 balance = 1;
+  bool success = 2;
+}
+
 ///////////////////////////
 service BankService {
-  rpc GetClientSession(ClientLoginRequest) returns (ClientSessionResponse) {
-    option (services.common.genproto.comms.access_control) = {
-      allowed_roles: [GATEWAY],
-      allow_unauthenticated: false
-    };
-  }
+  rpc GetClientSession(ClientLoginRequest) returns (ClientSessionResponse) {}
+  rpc CheckBalance(CheckBalanceRequest) returns (CheckBalanceResponse) {}
 }

@@ -17,19 +17,16 @@ func StartGatewayServer(reqPath string, keyPath string) {
 	if err != nil {
 		log.Fatalf("failed to load TLS credentials: %v", err)
 	}
-
+	
+	gatewayServer := gateway.NewGatewayServerTLS(tlsConfig)
 	grpcServer := grpc.NewServer(
 		grpc.Creds(tlsConfig), 
-		grpc.UnaryInterceptor(
+		grpc.ChainUnaryInterceptor(
+			gatewayServer.Crm.IdempotencyKeyUnaryInterceptor,
 			auth.RBACUnaryInterceptor,
+			auth.LoggerUnaryInterceptor,
 		),
-		// grpc.WithChainUnaryInterceptor(
-		// 	auth.RBACUnaryInterceptor,
-		// 	auth.LoggerUnaryInterceptor,
-		// ),
 	)
-
-	gatewayServer := gateway.NewGatewayServerTLS(tlsConfig)
 	pb.RegisterStripeServiceServer(grpcServer, gatewayServer)
 
 	lis, err := net.Listen("tcp", utils.PAYMENT_GATEWAY_URL)

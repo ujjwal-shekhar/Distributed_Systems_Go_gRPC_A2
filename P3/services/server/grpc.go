@@ -8,30 +8,34 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/ujjwal-shekhar/stripe-clone/services/client/handler/auth"
+	"github.com/ujjwal-shekhar/stripe-clone/services/server/handler/auth"
 	pb "github.com/ujjwal-shekhar/stripe-clone/services/common/genproto/comms"
 	"github.com/ujjwal-shekhar/stripe-clone/services/common/utils"
 	"github.com/ujjwal-shekhar/stripe-clone/services/server/handler/server"
 )
 
 func InformGateway(bankname string, address string, tlsCreds credentials.TransportCredentials) {
-	log.Printf("111Informing gateway about bank: %s", bankname)
 	// Get the connection to the gateway
 	conn, err := grpc.NewClient(utils.PAYMENT_GATEWAY_URL, grpc.WithTransportCredentials(tlsCreds))
 	if err != nil {
 		log.Fatalf("Failed to connect to payment gateway: %v", err)
 	}
 	gatewayClient := pb.NewStripeServiceClient(conn)
-
-	log.Printf("Informing gateway about bank: %s", bankname)
-
+	log.Printf("Connected to payment gateway for registration\n")
+	
 	// Inform the gateway about the bank
-	_, err = gatewayClient.BankRegister(context.Background(), 
-										&pb.BankRegistrationRequest{Bankname: bankname, 
-																	Address: address})
+	_, err = gatewayClient.BankRegister(
+		context.Background(), 
+		&pb.BankRegistrationRequest{
+			Bankname: bankname, 
+			Address: address,
+		},
+	)
+
 	if err != nil {
 		log.Fatalf("Failed to register bank: %v", err)
 	}
+	log.Printf("Informed gateway about bank: %s", bankname)
 }
 
 func StartBankServer(bankname string, reqPath string, keyPath string) {
@@ -40,15 +44,16 @@ func StartBankServer(bankname string, reqPath string, keyPath string) {
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
+	log.Printf("Listening on port: %s", lis.Addr().String())
 
 	// Load the TLS credentials
 	tlsCreds, err := auth.LoadTLSCredentials(reqPath, keyPath)
 	if err != nil {
 		log.Fatalf("Failed to load TLS credentials: %v", err)
 	}
+	log.Printf("TLS credentials loaded successfully")
 
 	// Register the bank with the gateway
-	log.Printf("Informing gateway about bank: %s", bankname)
 	InformGateway(bankname, lis.Addr().String(), tlsCreds)
 
 	// Create a new bank server
@@ -58,10 +63,10 @@ func StartBankServer(bankname string, reqPath string, keyPath string) {
 		log.Fatalf("Failed to create bank server: %v", err)
 	}
 	pb.RegisterBankServiceServer(grpcServer, bankServer)
-
 	log.Printf("Bank server is running on port %s", lis.Addr().String())
 
-	// Serve the server
+
+	// Serve on the random port
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}

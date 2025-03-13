@@ -15,8 +15,16 @@ func main() {
 	PASS := flag.String("PASS", "password", "The password of the client")
 	flag.Parse()
 
-	StartClient(*UNAME, *BNAME, *PASS, client.CLIENT_PREFIX + "cert/client-cert.pem",
-								       client.CLIENT_PREFIX + "cert/client-key.pem")
+	cli, tm := StartClient(
+		*UNAME, 
+		*BNAME, 
+		*PASS, 
+		client.CLIENT_PREFIX + "cert/client-cert.pem",
+		client.CLIENT_PREFIX + "cert/client-key.pem",
+	)
+	if cli == nil || tm == nil {
+		log.Fatalf("Failed to start client")
+	}
 
 	// Keep taking user requests
 	for {
@@ -44,8 +52,8 @@ func main() {
 		// 		log.Fatalf("Invalid input")
 		// 	}
 		// 	cli.Pay(parts[2], amount)
-		// case "balance":
-		// 	cli.Balance()
+		case "balance":
+			cli.Balance()
 		case "exit":
 			return
 		default:

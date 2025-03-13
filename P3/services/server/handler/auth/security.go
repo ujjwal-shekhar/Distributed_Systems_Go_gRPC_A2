@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"log"
 	"os"
 
 	"google.golang.org/grpc/credentials"
@@ -22,12 +23,14 @@ func LoadTLSCredentials(reqPath string, keyPath string) (credentials.TransportCr
 	if !certPool.AppendCertsFromPEM(rootCA) {
 		return nil, fmt.Errorf("failed to append client certs")
 	}
+	log.Printf("Root CA loaded successfully\n")
 
 	// Client certificate handling
 	bankCert, err := tls.LoadX509KeyPair(reqPath, keyPath)
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Client certificate loaded successfully\n")
 
 	return credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{bankCert},

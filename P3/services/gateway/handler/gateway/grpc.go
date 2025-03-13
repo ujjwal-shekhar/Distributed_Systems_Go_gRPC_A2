@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sync"
 
@@ -33,6 +34,7 @@ type PaymentGatewayServer struct {
 	mu      sync.Mutex
 	banks   map[string]BankClient
 	clients map[string]Client
+	Crm     *CachedResponseMap
 }
 
 // NewGatewayServerTLS initializes a new gateway server with TLS.
@@ -40,6 +42,7 @@ func NewGatewayServerTLS(tlsConfig credentials.TransportCredentials) *PaymentGat
 	return &PaymentGatewayServer{
 		banks:   make(map[string]BankClient),
 		clients: make(map[string]Client),
+		Crm:     NewCachedResponseMap(),
 	}
 }
 
@@ -54,25 +57,27 @@ func (s *PaymentGatewayServer) ClientLogin(ctx context.Context, req *pb.ClientLo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Fetching the bank client to forward this request
 	bankClient, exists := s.banks[req.Bankname]
 	if !exists {
-		return &pb.ClientSessionResponse{Success: false}, nil
+		return &pb.ClientSessionResponse{Success: false}, errors.New("bank not registered / offline")
 	}
-
 	log.Printf("ClientLogin: %s @ %s", req.Username, req.Bankname)
 
+	// RPC to the bank service to verify client details
 	clientSession, err := bankClient.Client.GetClientSession(ctx, req)
 	if err != nil || !clientSession.Success {
-		log.Printf("ClientLogin failed: %s, Error: %v", req.Username, err)
+		log.Printf("ClientLogin failed: WRONG CREDS : %s, Error: %v", req.Username, err)
 		return &pb.ClientSessionResponse{Success: false}, err
 	}
+	log.Printf("ClientLogin successful: VERIFIED CREDS : %s, Role: %s", req.Username, clientSession.Role)
 
-	token, err := auth.GenerateJWT(req.Username, clientSession.Role)
+	token, err := auth.GenerateJWT(req.Username, req.Bankname, clientSession.Role)
 	if err != nil {
 		return &pb.ClientSessionResponse{Success: false}, err
 	}
+	log.Printf("ClientLogin successful: JWT GENERATED : %s", req.Username)
 
-	log.Printf("ClientLogin successful: %s, Role: %s", req.Username, clientSession.Role)
 	return &pb.ClientSessionResponse{Success: true, Token: token, Role: clientSession.Role}, nil
 }
 
@@ -103,4 +108,23 @@ func (s *PaymentGatewayServer) BankRegister(ctx context.Context, req *pb.BankReg
 
 	log.Printf("Bank registered: %s", req.Bankname)
 	return &pb.BankRegistrationResponse{Success: true}, nil
+}
+
+func (s *PaymentGatewayServer) CheckBalance(ctx context.Context, req *pb.CheckBalanceRequest) (*pb.CheckBalanceResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Forward the request to the bank
+	bank, exists := s.banks[req.Bankname]
+	if !exists {
+		return &pb.CheckBalanceResponse{Balance: 0}, errors.New("bank not registered")
+	}
+	log.Printf("CheckBalance: %s @ %s", req.Username, req.Bankname)
+
+	resp, err := bank.Client.CheckBalance(ctx, req)
+	if err != nil {
+		return &pb.CheckBalanceResponse{Balance: 0}, err
+	}
+
+	return resp, nil
 }

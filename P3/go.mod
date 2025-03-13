@@ -7,6 +7,7 @@ require google.golang.org/grpc v1.71.0
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 )

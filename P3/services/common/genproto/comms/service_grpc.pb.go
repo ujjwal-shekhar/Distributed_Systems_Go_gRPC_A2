@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	StripeService_ClientLogin_FullMethodName  = "/services.common.genproto.comms.StripeService/ClientLogin"
 	StripeService_BankRegister_FullMethodName = "/services.common.genproto.comms.StripeService/BankRegister"
+	StripeService_CheckBalance_FullMethodName = "/services.common.genproto.comms.StripeService/CheckBalance"
 )
 
 // StripeServiceClient is the client API for StripeService service.
@@ -31,6 +32,7 @@ const (
 type StripeServiceClient interface {
 	ClientLogin(ctx context.Context, in *ClientLoginRequest, opts ...grpc.CallOption) (*ClientSessionResponse, error)
 	BankRegister(ctx context.Context, in *BankRegistrationRequest, opts ...grpc.CallOption) (*BankRegistrationResponse, error)
+	CheckBalance(ctx context.Context, in *CheckBalanceRequest, opts ...grpc.CallOption) (*CheckBalanceResponse, error)
 }
 
 type stripeServiceClient struct {
@@ -61,6 +63,16 @@ func (c *stripeServiceClient) BankRegister(ctx context.Context, in *BankRegistra
 	return out, nil
 }
 
+func (c *stripeServiceClient) CheckBalance(ctx context.Context, in *CheckBalanceRequest, opts ...grpc.CallOption) (*CheckBalanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckBalanceResponse)
+	err := c.cc.Invoke(ctx, StripeService_CheckBalance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StripeServiceServer is the server API for StripeService service.
 // All implementations must embed UnimplementedStripeServiceServer
 // for forward compatibility.
@@ -69,6 +81,7 @@ func (c *stripeServiceClient) BankRegister(ctx context.Context, in *BankRegistra
 type StripeServiceServer interface {
 	ClientLogin(context.Context, *ClientLoginRequest) (*ClientSessionResponse, error)
 	BankRegister(context.Context, *BankRegistrationRequest) (*BankRegistrationResponse, error)
+	CheckBalance(context.Context, *CheckBalanceRequest) (*CheckBalanceResponse, error)
 	mustEmbedUnimplementedStripeServiceServer()
 }
 
@@ -84,6 +97,9 @@ func (UnimplementedStripeServiceServer) ClientLogin(context.Context, *ClientLogi
 }
 func (UnimplementedStripeServiceServer) BankRegister(context.Context, *BankRegistrationRequest) (*BankRegistrationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BankRegister not implemented")
+}
+func (UnimplementedStripeServiceServer) CheckBalance(context.Context, *CheckBalanceRequest) (*CheckBalanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckBalance not implemented")
 }
 func (UnimplementedStripeServiceServer) mustEmbedUnimplementedStripeServiceServer() {}
 func (UnimplementedStripeServiceServer) testEmbeddedByValue()                       {}
@@ -142,6 +158,24 @@ func _StripeService_BankRegister_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StripeService_CheckBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckBalanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StripeServiceServer).CheckBalance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StripeService_CheckBalance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StripeServiceServer).CheckBalance(ctx, req.(*CheckBalanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StripeService_ServiceDesc is the grpc.ServiceDesc for StripeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -157,6 +191,10 @@ var StripeService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "BankRegister",
 			Handler:    _StripeService_BankRegister_Handler,
 		},
+		{
+			MethodName: "CheckBalance",
+			Handler:    _StripeService_CheckBalance_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "service.proto",
@@ -164,6 +202,7 @@ var StripeService_ServiceDesc = grpc.ServiceDesc{
 
 const (
 	BankService_GetClientSession_FullMethodName = "/services.common.genproto.comms.BankService/GetClientSession"
+	BankService_CheckBalance_FullMethodName     = "/services.common.genproto.comms.BankService/CheckBalance"
 )
 
 // BankServiceClient is the client API for BankService service.
@@ -173,6 +212,7 @@ const (
 // /////////////////////////
 type BankServiceClient interface {
 	GetClientSession(ctx context.Context, in *ClientLoginRequest, opts ...grpc.CallOption) (*ClientSessionResponse, error)
+	CheckBalance(ctx context.Context, in *CheckBalanceRequest, opts ...grpc.CallOption) (*CheckBalanceResponse, error)
 }
 
 type bankServiceClient struct {
@@ -193,6 +233,16 @@ func (c *bankServiceClient) GetClientSession(ctx context.Context, in *ClientLogi
 	return out, nil
 }
 
+func (c *bankServiceClient) CheckBalance(ctx context.Context, in *CheckBalanceRequest, opts ...grpc.CallOption) (*CheckBalanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckBalanceResponse)
+	err := c.cc.Invoke(ctx, BankService_CheckBalance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BankServiceServer is the server API for BankService service.
 // All implementations must embed UnimplementedBankServiceServer
 // for forward compatibility.
@@ -200,6 +250,7 @@ func (c *bankServiceClient) GetClientSession(ctx context.Context, in *ClientLogi
 // /////////////////////////
 type BankServiceServer interface {
 	GetClientSession(context.Context, *ClientLoginRequest) (*ClientSessionResponse, error)
+	CheckBalance(context.Context, *CheckBalanceRequest) (*CheckBalanceResponse, error)
 	mustEmbedUnimplementedBankServiceServer()
 }
 
@@ -212,6 +263,9 @@ type UnimplementedBankServiceServer struct{}
 
 func (UnimplementedBankServiceServer) GetClientSession(context.Context, *ClientLoginRequest) (*ClientSessionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetClientSession not implemented")
+}
+func (UnimplementedBankServiceServer) CheckBalance(context.Context, *CheckBalanceRequest) (*CheckBalanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckBalance not implemented")
 }
 func (UnimplementedBankServiceServer) mustEmbedUnimplementedBankServiceServer() {}
 func (UnimplementedBankServiceServer) testEmbeddedByValue()                     {}
@@ -252,6 +306,24 @@ func _BankService_GetClientSession_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BankService_CheckBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckBalanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BankServiceServer).CheckBalance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BankService_CheckBalance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BankServiceServer).CheckBalance(ctx, req.(*CheckBalanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BankService_ServiceDesc is the grpc.ServiceDesc for BankService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -262,6 +334,10 @@ var BankService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetClientSession",
 			Handler:    _BankService_GetClientSession_Handler,
+		},
+		{
+			MethodName: "CheckBalance",
+			Handler:    _BankService_CheckBalance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
