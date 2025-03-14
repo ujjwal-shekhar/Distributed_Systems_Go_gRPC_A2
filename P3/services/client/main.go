@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
-	"strings"
+	"os"
 
 	"github.com/ujjwal-shekhar/stripe-clone/services/client/handler/client"
 )
@@ -30,34 +31,28 @@ func main() {
 	for {
 		// Get the user input
 		var input string
-		_, err := fmt.Scanln(&input)
-		if err != nil {
-			log.Fatalf("Failed to read input: %v", err)
-		}
-
-		// Parse the user input
-		parts := strings.Split(input, " ")
-		if len(parts) == 0 {
-			log.Fatalf("Invalid input")
-		}
+		io.WriteString(os.Stdout, "Enter your command: ")
+		fmt.Scanln(&input)
 
 		// Process the user input
-		switch parts[0] {
-		// case "pay":
-		// 	if len(parts) != 3 {
-		// 		log.Fatalf("Invalid input")
-		// 	}
-		// 	amount, err := strconv.ParseFloat(parts[1], 64)
-		// 	if err != nil {
-		// 		log.Fatalf("Invalid input")
-		// 	}
-		// 	cli.Pay(parts[2], amount)
+		switch input {
+		case "pay":
+			// Read the next three lines
+			var recipient, bankname string
+			var amount int32
+			io.WriteString(os.Stdout, "Enter the recipient: ")
+			fmt.Scanln(&recipient)
+			io.WriteString(os.Stdout, "Enter the bankname: ")
+			fmt.Scanln(&bankname)
+			io.WriteString(os.Stdout, "Enter the amount: ")
+			fmt.Scanln(&amount)
+			cli.MakePayment(amount, recipient, bankname)
 		case "balance":
 			cli.Balance()
 		case "exit":
 			return
 		default:
-			log.Fatalf("Invalid input")
+			log.Printf("Invalid input")
 		}
 	}
 }

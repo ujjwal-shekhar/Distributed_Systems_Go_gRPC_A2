@@ -69,3 +69,43 @@ func (s *BankServer) CheckBalance(ctx context.Context, req *pb.CheckBalanceReque
 	// Else, return it with success
 	return &pb.CheckBalanceResponse{Success: true, Balance: int32(balance)}, nil
 }
+
+func (s *BankServer) QueryPayment(ctx context.Context, req *pb.QueryPaymentRequest) (*pb.QueryPaymentResponse, error) {
+	if req.IsSender {
+		// Check if the sender has enough balance
+		canDeduct, err := db.CapableOfDeducting(req.Username, int(req.Amount))
+		if err != nil || !canDeduct {
+			log.Printf("QueryPayment: %s failed: %v", req.Username, err)
+			return &pb.QueryPaymentResponse{Vote: false}, err
+		}
+
+		return &pb.QueryPaymentResponse{Vote: true}, nil
+	}
+	
+	// Else, return it with success
+	log.Printf("QueryPayment: %s successful", req.Username)
+	return &pb.QueryPaymentResponse{Vote: true}, nil
+}
+
+func (s *BankServer) PersistPayment(ctx context.Context, req *pb.PersistPaymentRequest) (*pb.PersistPaymentResponse, error) {
+	if req.IsSender {
+		// Deduct the amount from the sender
+		_, err := db.DB.Exec("UPDATE users SET balance = balance - ? WHERE username = ?", req.Amount, req.Username)
+		if err != nil {
+			log.Printf("PersistPayment: %s failed: %v", req.Username, err)
+			return &pb.PersistPaymentResponse{Success: false}, err
+		}
+		log.Printf("PersistPayment: %s deducted %d", req.Username, req.Amount)
+	} else {
+		// Add the amount to the receiver
+		_, err := db.DB.Exec("UPDATE users SET balance = balance + ? WHERE username = ?", req.Amount, req.Username)
+		if err != nil {
+			log.Printf("PersistPayment: %s failed: %v", req.Username, err)
+			return &pb.PersistPaymentResponse{Success: false}, err
+		}
+		log.Printf("PersistPayment: %s added %d", req.Username, req.Amount)
+	}
+	
+	// return it with success
+	return &pb.PersistPaymentResponse{Success: true}, nil
+}

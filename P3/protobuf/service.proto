@@ -43,6 +43,13 @@ service StripeService {
       allow_unauthenticated: false
     };
   }
+
+  rpc MakePayment(MakePaymentRequest) returns (MakePaymentResponse) {
+    option (services.common.genproto.comms.access_control) = {
+      allowed_roles: [CUSTOMER, ADMIN],
+      allow_unauthenticated: false
+    };
+  }
 }
 
 message ClientLoginRequest {
@@ -69,7 +76,6 @@ message BankRegistrationResponse {
 message CheckBalanceRequest {
   string username = 1;
   string bankname = 2;
-  string token = 3;
 }
 
 message CheckBalanceResponse {
@@ -77,8 +83,45 @@ message CheckBalanceResponse {
   bool success = 2;
 }
 
+message MakePaymentRequest {
+  string sender_username = 1;
+  string sender_bankname = 2;
+
+  string receiver_username = 3;
+  string receiver_bankname = 4;
+
+  int32 amount = 5;
+}
+
+message MakePaymentResponse {
+  bool success = 1;
+}
+
 ///////////////////////////
 service BankService {
   rpc GetClientSession(ClientLoginRequest) returns (ClientSessionResponse) {}
   rpc CheckBalance(CheckBalanceRequest) returns (CheckBalanceResponse) {}
+  rpc QueryPayment(QueryPaymentRequest) returns (QueryPaymentResponse) {}
+  rpc PersistPayment(PersistPaymentRequest) returns (PersistPaymentResponse) {}
+}
+
+message QueryPaymentRequest {
+  string username = 1;
+  bool is_sender = 2;
+  int32 amount = 3;
+}
+
+message QueryPaymentResponse {
+  bool vote = 1;
+}
+
+message PersistPaymentRequest {
+  bool to_commit = 1;
+  string username = 2;
+  bool is_sender = 3;
+  int32 amount = 4;
+}
+
+message PersistPaymentResponse {
+  bool success = 1;
 }

@@ -116,6 +116,18 @@ func RBACUnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerIn
 		if banknameField != nil {
 			reflection.Set(banknameField, protoreflect.ValueOfString(claims.Bankname))
 		}
+
+		// Set "SenderUsername" field
+		senderUsernameField := descriptor.Fields().ByName("sender_username")
+		if senderUsernameField != nil {
+			reflection.Set(senderUsernameField, protoreflect.ValueOfString(claims.Username))
+		}
+
+		// Set "SenderBankname" field
+		senderBanknameField := descriptor.Fields().ByName("sender_bankname")
+		if senderBanknameField != nil {
+			reflection.Set(senderBanknameField, protoreflect.ValueOfString(claims.Bankname))
+		}
 	}
 	log.Printf("RBACUnaryInterceptor: user details overwritten with JWT claims")
 

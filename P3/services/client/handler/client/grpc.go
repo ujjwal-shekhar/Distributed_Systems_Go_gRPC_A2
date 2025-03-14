@@ -85,7 +85,6 @@ func (c *Client) Balance() (int32, error) {
 		&pb.CheckBalanceRequest{
 			Username: c.username,
 			Bankname: c.bankname,
-			Token: c.jwt_token,
 		},
 	)
 	if err != nil {
@@ -95,4 +94,25 @@ func (c *Client) Balance() (int32, error) {
 	log.Printf("Balance of %s: %d\n", c.username, resp.Balance)
 
 	return resp.Balance, nil
+}
+
+func (c *Client) MakePayment(amount int32, recipient_username string, recipient_bankname string) error {
+	resp, err := c.stripeClient.MakePayment(
+		context.Background(), 
+		&pb.MakePaymentRequest{
+			SenderUsername: c.username,
+			SenderBankname: c.bankname,
+			ReceiverUsername: recipient_username,
+			ReceiverBankname: recipient_bankname,
+			Amount: amount,
+		},
+	)
+	if err != nil || !resp.Success {
+		log.Fatalf("Failed to make payment: %v", err)
+		return err
+	}
+	log.Printf("Payment of %d to %s @ %s successful\n", 
+				amount, recipient_username, recipient_bankname)
+
+	return nil
 }

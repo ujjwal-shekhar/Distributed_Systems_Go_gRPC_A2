@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -127,4 +128,107 @@ func (s *PaymentGatewayServer) CheckBalance(ctx context.Context, req *pb.CheckBa
 	}
 
 	return resp, nil
+}
+
+func (s *PaymentGatewayServer) MakePayment(ctx context.Context, req *pb.MakePaymentRequest) (*pb.MakePaymentResponse, error) {
+	s.mu.Lock()
+	senderBank, senderBankExists := s.banks[req.SenderBankname]
+	receiverBank, receiverBankExists := s.banks[req.ReceiverBankname]
+	if !senderBankExists || !receiverBankExists {
+		return &pb.MakePaymentResponse{Success: false}, errors.New("bank not registered")
+	}
+	s.mu.Unlock()
+
+	// I will have to do a 2PC + Timeout here
+	finalVote := true
+
+	// Query phase will be in two go routines which we will wait on
+	// unless they timeout, and then the vote will be taken to be "no"
+	timeout_sender := make(chan bool, 1)
+	vote_sender := make(chan bool, 1)
+	
+	// Start the query phase
+	go func() {
+		resp, err :=senderBank.Client.QueryPayment(
+			ctx, &pb.QueryPaymentRequest{
+				Username: req.SenderUsername,
+				IsSender: true,
+				Amount: req.Amount,
+			},
+		)
+		vote_sender <- err == nil && resp.Vote
+	}()
+	go func() {
+		time.Sleep(TIMEOUT_2PC)
+		timeout_sender <- false
+	}()
+	log.Printf("MakePayment: Query phase started for sender: %s @ %s", req.SenderUsername, req.SenderBankname)
+
+	// Select on the vote channels and the timeout channels
+	select {
+	case <-timeout_sender:
+		log.Printf("MakePayment: Query phase timed out for sender: %s @ %s", req.SenderUsername, req.SenderBankname)
+		finalVote = false
+	case vote := <-vote_sender:
+		log.Printf("MakePayment: Query phase successful for sender: %s @ %s", req.SenderUsername, req.SenderBankname)
+		finalVote = finalVote && vote
+	}
+	
+	// Receiver query phase
+	timeout_receiver := make(chan bool, 1)
+	vote_receiver := make(chan bool, 1)
+
+	go func() {
+		log.Printf("Query phase started for receiver: %s @ %s", req.ReceiverUsername, req.ReceiverBankname)
+		resp, err := receiverBank.Client.QueryPayment(
+			ctx, &pb.QueryPaymentRequest{
+				Username: req.ReceiverUsername,
+				IsSender: false,
+				Amount: req.Amount,
+			},
+		)
+		vote_receiver <- err == nil && resp.Vote
+	}()
+	go func() {
+		time.Sleep(TIMEOUT_2PC)
+		timeout_receiver <- false
+	}()
+	log.Printf("MakePayment: Query phase started for receiver: %s @ %s", req.ReceiverUsername, req.ReceiverBankname)
+
+	select {
+	case <-timeout_receiver:
+		log.Printf("MakePayment: Query phase timed out for receiver: %s @ %s", req.ReceiverUsername, req.ReceiverBankname)
+		finalVote = false
+	case vote := <-vote_receiver:
+		log.Printf("MakePayment: Query phase successful for receiver: %s @ %s", req.ReceiverUsername, req.ReceiverBankname)
+		finalVote = finalVote && vote
+	}
+
+	log.Printf("MakePayment: Final vote: %v | Starting Commit/Rollback", finalVote)
+
+	// Based on the votes gathered we will send the commit/rollback
+	senderBank.Client.PersistPayment(
+		ctx, &pb.PersistPaymentRequest{
+			Username: req.SenderUsername,
+			Amount: req.Amount,
+			ToCommit: true,
+			IsSender: true,
+		},
+	)
+	receiverBank.Client.PersistPayment(
+		ctx, &pb.PersistPaymentRequest{
+			Username: req.ReceiverUsername,
+			Amount: req.Amount,
+			ToCommit: true,
+			IsSender: false,
+		},
+	)
+
+	if finalVote {
+		log.Printf("MakePayment: Commit successful for both banks")
+		return &pb.MakePaymentResponse{Success: true}, nil
+	} else {
+		log.Printf("MakePayment: Rollback successful for both banks")
+		return &pb.MakePaymentResponse{Success: false}, nil
+	}
 }

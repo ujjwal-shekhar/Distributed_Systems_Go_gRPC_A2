@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sync"
 	"time"
@@ -15,20 +16,22 @@ import (
 // IMP: We do not want to redo IdempotencyKeyUnaryInterceptor
 // so the entire state is preserved in this struct.
 type PendingTransaction struct {
-	invoker  grpc.UnaryInvoker
-	ctx      context.Context
-	method   string
-	req      interface{}
-	reply    interface{}
-	cc       *grpc.ClientConn
-	opts     []grpc.CallOption
-	lastTime time.Time
-	resultCh chan error
+	invoker 	grpc.UnaryInvoker
+	ctx     	context.Context
+	method 	  	string
+	req     	interface{}
+	reply   	interface{}
+	cc       	*grpc.ClientConn
+	opts     	[]grpc.CallOption
+	lastTime 	time.Time
+	resultCh 	chan error
+	numRetries 	int
+	mu 		   	sync.Mutex
 }
 
 // TransactionManager manages retries for failed transactions.
 type TransactionManager struct {
-	rwLock       sync.RWMutex 
+	rwLock       sync.Mutex 
 	pendingQueue map[string]*PendingTransaction
 	threshold    time.Duration
 }
@@ -82,6 +85,7 @@ func (tm *TransactionManager) IdempotencyKeyUnaryInterceptor() grpc.UnaryClientI
 			opts:     opts,
 			lastTime: time.Now(),
 			resultCh: resultCh,
+			numRetries: MAX_RETRIES,
 		}
 		tm.rwLock.Unlock()
 
@@ -120,37 +124,45 @@ func (tm *TransactionManager) IdempotencyKeyUnaryInterceptor() grpc.UnaryClientI
 // retryPendingTransactions retries failed requests after the threshold is exceeded.
 func (tm *TransactionManager) retryPendingTransactions() {
 	for {
-		time.Sleep(5 * time.Second) // Check every 5 seconds
-
+		time.Sleep(RETRY_FREQUENCY)
 		now := time.Now()
-		var keysToRemove []string
 
-		tm.rwLock.RLock() // Allow multiple readers
+		// Lock for reading the pendingQueue
+		tm.rwLock.Lock()
 		for key, txn := range tm.pendingQueue {
 			if now.Sub(txn.lastTime) > tm.threshold {
 				log.Printf("Retrying request for key: %s", key)
 
-				// Retry request without interceptor to avoid adding a new idempotency key
-				err := txn.invoker(txn.ctx, txn.method, txn.req, txn.reply, txn.cc, txn.opts...)
-				if err == nil {
-					log.Printf("Retry succeeded for key: %s", key)
-					keysToRemove = append(keysToRemove, key)
-					txn.resultCh <- nil
-				} else {
-					log.Printf("Retry failed for key: %s, error: %v", key, err)
+				// Launch a goroutine for non-blocking retry
+				go func(key string, txn *PendingTransaction) {
+					// Lock the transaction for thread-safe access
+					txn.mu.Lock()
+					txn.numRetries--
 					txn.lastTime = now // Update last retry time
-				}
-			}
-		}
-		tm.rwLock.RUnlock()
+					// Decrement retry count
+					if txn.numRetries == 0 {
+						log.Printf("Max retries reached for key: %s", key)
+						txn.resultCh <-errors.New("max retries reached")
+					}
+					txn.mu.Unlock()
 
-		// Remove successfully retried transactions (requires write lock)
-		if len(keysToRemove) > 0 {
-			tm.rwLock.Lock()
-			for _, key := range keysToRemove {
-				delete(tm.pendingQueue, key)
+					// Retry request without interceptor to avoid adding a new idempotency key
+					err := txn.invoker(txn.ctx, txn.method, txn.req, txn.reply, txn.cc, txn.opts...)
+					if err == nil {
+						log.Printf("Retry succeeded for key: %s", key)
+						txn.resultCh <- nil
+					} else {
+						log.Printf("Retry failed for key: %s, error: %v", key, err)
+						txn.resultCh <- err
+					}
+
+					// Remove the transaction from the pendingQueue
+					tm.rwLock.Lock()
+					delete(tm.pendingQueue, key)
+					tm.rwLock.Unlock()
+				}(key, txn)
 			}
-			tm.rwLock.Unlock()
 		}
+		tm.rwLock.Unlock()
 	}
 }

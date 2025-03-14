@@ -35,16 +35,20 @@ func (crm *CachedResponseMap) IdempotencyKeyUnaryInterceptor(ctx context.Context
 	}
 	log.Printf("IdempotencyKeyUnaryInterceptor: Idempotency key found: %s", idempotencyKey)
 	
-	crm.mu.Lock()
-	defer crm.mu.Unlock()
+	crm.mu.Lock()////////
 	if cachedResp, exists := crm.m[idempotencyKey[0]]; exists {
 		log.Printf("IdempotencyKeyUnaryInterceptor: Found cached response for %s", idempotencyKey)
 		return cachedResp.Resp, cachedResp.Err
 	}
-
+	crm.mu.Unlock()//////
+	
 	// Process the request
 	resp, err := handler(ctx, req)
+
+	crm.mu.Lock()////////
 	crm.m[idempotencyKey[0]] = CachedResponse{Resp: resp, Err: err}
+	crm.mu.Unlock()//////
+
 	log.Printf("IdempotencyKeyUnaryInterceptor: Caching response for %s", idempotencyKey)
 	return resp, err
 }

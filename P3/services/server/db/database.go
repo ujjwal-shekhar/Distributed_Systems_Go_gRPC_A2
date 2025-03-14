@@ -60,3 +60,15 @@ func GetBalance(username string) (int, error) {
 
 	return balance, nil
 }
+
+func CapableOfDeducting(username string, amount int) (bool, error) {
+	log.Printf("Checking if user: %s can deduct %d\n", username, amount)
+
+	var balance int
+	err := DB.QueryRow("SELECT balance FROM users WHERE username = ?", username).Scan(&balance)
+	if err != nil {
+		return false, err
+	}
+
+	return balance >= amount, nil
+}
