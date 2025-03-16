@@ -1,12 +1,12 @@
 syntax="proto3";
-
-option go_package = "github.com/ujjwal-shekhar/common/mapreduce";
 import "google/protobuf/empty.proto";
+option go_package = "github.com/ujjwal-shekhar/common/mapreduce";
 
 service FileTransfer {
-    rpc FileUpload(FileChunk) returns (google.protobuf.Empty) {}
-    rpc SendKV(KVPair) returns (google.protobuf.Empty) {}
-}
+    rpc SendToMapper (stream FileChunk) returns (FileInfo) {}
+    rpc SendToReducer (FileInfo) returns (google.protobuf.Empty) {}
+    rpc Vomit (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+} 
 
 message FileChunk {
     bytes chunk = 1;
@@ -14,7 +14,6 @@ message FileChunk {
     string fileName = 3;
 }
 
-message KVPair {
-    string key = 1;
-    string value = 2;
+message FileInfo {
+    string location = 1;
 }

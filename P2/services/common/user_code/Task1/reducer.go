@@ -1,8 +1,6 @@
 package task1
 
 import (
-	"log"
-
 	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code/template"
 )
 

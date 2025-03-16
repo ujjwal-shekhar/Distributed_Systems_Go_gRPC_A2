@@ -1,91 +1,58 @@
 package utils
 
 import (
-	// "fmt"
-	"context"
-	"crypto/md5"
-	"fmt"
+	"hash/fnv"
 	"log"
-	"os"
+	"sort"
 	"strconv"
-
-	// "os"
-
-	pb "github.com/ujjwal-shekhar/mapreduce/services/common/genproto/comms"
-	// task1 "github.com/ujjwal-shekhar/mapreduce/services/common/user_code/Task1"
-	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code/template"
-	handler "github.com/ujjwal-shekhar/mapreduce/services/server/handler/server"
 )
 
-func hashKey(key string) int {
-	// Hash the key
-	hasher := md5.New()
-	hasher.Write([]byte(key))
-	hash := hasher.Sum(nil)
-	hasher.Reset()
-
-	// Find the reducer to send to
-	return int(hash[0])
+func hash(s string) int {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return int(h.Sum32())
 }
 
-func StartWorking(worker *handler.Worker, outChannel chan common.KV) {
-	log.Printf("Starting worker routine!!!!!!!!!!")
-	for kv := range worker.TaskChannel {
-		log.Printf("Received key-value pair")
-		if worker.TaskDesc == "mapper" {
-			worker.WorkFunc([]common.KV{kv}, outChannel)
+func SortKV(kv []KV) []KV{
+	// Sort the key-value pairs by key
+	sort.Slice(kv, func(i, j int) bool {
+		return kv[i].Key < kv[j].Key
+	})
+
+	return kv
+}
+
+func ReduceByKey(sorted_kv []KV, taskDesc string) []ReducedKV {
+	// Reduce the key-value pairs by key
+	var reduced_kv []ReducedKV
+	var currentKey string
+	var currentValue []string = make([]string, 0)
+	for _, kv := range sorted_kv {
+		if kv.Key == currentKey {
+			if taskDesc == "wordcount" {
+				val, err := strconv.Atoi(currentValue[0])
+				if err != nil {
+					log.Fatalf("Error converting value to int: %v", err)
+				}
+				currentValue[0] = string(val + 1)
+			} else if taskDesc == "invertedindex" {
+				currentValue = append(currentValue, kv.Value)
+			}
 		} else {
-
+			if currentKey != "" {
+				reduced_kv = append(reduced_kv, ReducedKV{currentKey, currentValue})
+			}
+			currentKey = kv.Key
+			if taskDesc == "wordcount" {
+				currentValue = []string{"1"}
+			} else if taskDesc == "invertedindex" {
+				currentValue = []string{kv.Value}
+			}
 		}
 	}
-}
-
-func SendToReducers(worker *handler.Worker, outChannel chan common.KV, PORT *string) {
-	var Buffer []any
-
-		// We will push things on to the buffer until
-		// it reaches a size of 10000 key-value pairs
-		// Then we will send it 
-	for kv := range outChannel {
-		// Push the key-value pair to the buffer
-		Buffer = append(Buffer, kv)
-		if len(Buffer) == 10000 {
-			// Send the buffer to the reducer
-			MakeNewFile(Buffer, PORT)
-			Buffer = nil
-		}
+	if currentKey != "" {
+		reduced_kv = append(reduced_kv, ReducedKV{currentKey, currentValue})
 	}
-}
 
-func MakeNewFile(Buffer []any, PORT *string) {
-	
-
-func OutputFinalResults(outChannel chan common.KV, PORT *string) {
-	// Open a file with name <port>.out
-		// // Open a file with name <port>.out
-	fileName := fmt.Sprintf("tmp/%s.out", *PORT)
-	file, err := os.Create(fileName)
-	if err != nil {
-		log.Fatalf("Failed to create file %s: %v", fileName, err)
-	}
-	defer file.Close()
-
-	// Write everything from outChannel to the file
-	for kv := range outChannel {
-		// Convert the key-value pair to a string
-		line := fmt.Sprintf("Key: %v, Value: %v\n", kv.GetKey(), kv.GetValue())
-
-		// Write the line to the file
-		_, err := file.WriteString(line)
-		if err != nil {
-			log.Printf("Failed to write to file %s: %v", fileName, err)
-			continue
-		}
-
-		// Flush the file to ensure the data is written
-		err = file.Sync()
-		if err != nil {
-			log.Printf("Failed to flush file %s: %v", fileName, err)
-		}
-	}
+	return reduced_kv
 }

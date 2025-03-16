@@ -2,34 +2,35 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"strconv"
 	"sync"
 
-	emptypb "github.com/golang/protobuf/ptypes/empty"
 	pb "github.com/ujjwal-shekhar/mapreduce/services/common/genproto/comms"
 	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code"
 	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code/template"
-
-	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code/Task1"
-	// "github.com/ujjwal-shekhar/mapreduce/services/common/user_code/Task2"
+	"github.com/ujjwal-shekhar/mapreduce/services/server/handler/utils"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Worker struct {
 	pb.UnimplementedFileTransferServer
 	
-	// Mu 				*sync.Mutex
-	// Reducers 		[]pb.FileTransferClient
-	IsMapper		bool
-	TaskDesc		string
 	TaskChannel 	chan common.KV
 	WorkFunc 		func([]common.KV, chan common.KV)
 	UserDetails     *usercode.UserTaskDetails
+	
+	mu 				sync.Mutex
+	ReducerList		[]utils.KV
+	IsMapper		bool
+	TaskDesc		string
 	NumReducers		int
+	PortNumber		int
 }
 
 func NewMapper(taskDetails *usercode.UserTaskDetails, taskType string, numReducers int) *Worker {
 	return &Worker {
+		mu: sync.Mutex{},
 		IsMapper: true,
 		TaskDesc: taskType,
 		TaskChannel: make(chan common.KV),
@@ -41,6 +42,7 @@ func NewMapper(taskDetails *usercode.UserTaskDetails, taskType string, numReduce
 
 func NewReducer(taskDetails *usercode.UserTaskDetails, taskType string, numReducers int) *Worker {
 	return &Worker{
+		mu: sync.Mutex{},
 		IsMapper: false,
 		TaskDesc: taskType,
 		TaskChannel: make(chan common.KV),
@@ -50,65 +52,87 @@ func NewReducer(taskDetails *usercode.UserTaskDetails, taskType string, numReduc
 	}
 }
 
-func (w *Worker) FileUpload(ctx context.Context, in *pb.FileChunk) (*emptypb.Empty, error) {
-	log.Printf("Received chunk %v %v", in.FileName, in.ChunkNumber)
+func (w *Worker) SendToMapper(stream pb.FileTransfer_SendToMapperServer) error {
+	for {
+		chunk, err := stream.Recv()
+		if err != nil {
+			if err.Error() == "EOF" {
+				log.Println("Finished receiving chunks.")
+				break
+			}
+			log.Printf("Error receiving chunk: %v", err)
+			return err
+		}
 
-	// The client would have made this call to the mapper
-	// So, we need to create a key-value pair of the input type
-	// and push it to the task channel so the mapper function
-	// emits the intermediate key-value pairs to another outchannel
-	kv := w.UserDetails.KV_inType
+		// Apply the map function according to the task
+		switch w.TaskDesc {
+		case "wordcount":
+			// Split the chunk into words
+			words := utils.SplitChunksToWords(chunk.Chunk)
+			for _, word := range words {
+				// Emit the key-value pair (word, "1") into the intermediate file
+				utils.EmitKeyValue(word, "1", w.PortNumber, w.NumReducers)
+			}
 
-	if w.TaskDesc == "wordcount"{
-		kv.SetKeyVal(
-			task1.Key_in{Item: in.FileName},
-			task1.Value_in{Item: string(in.Chunk)},
-		)
-	} else if w.TaskDesc == "invertedindex"{
-		// kv.SetKeyVal(
-		// 	task2.Key_in{Item: in.FileName},
-		// 	task2.Value_in{Item: string(in.Chunk)},
-		// )
-	} else {
-		log.Fatalf("Failed to create key-value pair")
+		case "invertedindex":
+			// Split the chunk into words
+			words := utils.SplitChunksToWords(chunk.Chunk)
+			for _, word := range words {
+				// Emit the key-value pair (word, chunk.FileName) into the intermediate file
+				utils.EmitKeyValue(word, chunk.FileName, w.PortNumber, w.NumReducers)
+			}
+
+		default:
+			log.Printf("Unknown task description: %s", w.TaskDesc)
+			return fmt.Errorf("unknown task description: %s", w.TaskDesc)
+		}
 	}
-	w.TaskChannel <- kv
+
+	// Send a response back to the client
+	return stream.SendAndClose(&pb.FileInfo{Location: fmt.Sprintf("mapResults/%d", w.PortNumber)})
+}
+
+func (w *Worker) SendToReducer(ctx context.Context, req *pb.FileInfo) (*emptypb.Empty, error) {
+	// The folder path is what we get in the req
+	// The reducer will read all the files in the folder and then
+	// reduce them by storing it in a map one by one
+	// The map will then be used to write the final output to a file
+	filePath := fmt.Sprintf("%s/%d.out", req.Location, w.PortNumber - 6000)
+	log.Printf("Received file path: %s", filePath)
+
+	// Lets read this file line by line, the key values are tab separated
+	// We will split the line by tab and then store the key value pair in 
+	// the worker map
+	w.mu.Lock()
+	err := utils.ReadIntermediateFile(filePath, w.ReducerList)
+	w.mu.Unlock()
+	
+	if err != nil {
+		log.Printf("Error reading intermediate file: %v", err)
+		return nil, err
+	}
 
 	return &emptypb.Empty{}, nil
 }
 
-func (w *Worker) SendKV(ctx context.Context, in *pb.KVPair) (*emptypb.Empty, error) {
-	log.Printf("Received key-value pair: %v", in)
+func (w *Worker) Vomit(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
+	// // Reduce the intermediate data
+	// w.mu.Lock()
+	// output := w.ReducerList
+	// w.mu.Unlock()
 
-	// A mapper would have made this call to the reducer
-	// So, we will funnel all the intermediate key value pairs
-	// to the task channel so reducers can process them
-	// and then it will be thrown at the outchannel
-	kv := w.UserDetails.KV_intermediateType
+	// // Sort and reduce the data
+	// sortedOutput := utils.SortKV(output)
+	// reducedOutput := utils.ReduceByKey(sortedOutput, w.TaskDesc)
 
-	if w.TaskDesc == "wordcount"{
-		val, err := strconv.Atoi(string(in.Value))
-		if err != nil {
-			log.Fatalf("Failed to convert value to int: %v", err)
-		}
-
-		kv.SetKeyVal(
-			task1.Key_intermediate{Item: in.Key},
-			task1.Value_intermediate{Item: int32(val)},
-		)
-	}  else if w.TaskDesc == "invertedindex"{
-		// val, err := strconv.Atoi(string(in.Chunk))
-		// if err != nil {
-		// 	log.Fatalf("Failed to convert value to int: %v", err)
-		// }
-		// kv.SetKeyVal(
-		// 	task2.Key_intermediate{Item: in.FileName},
-		// 	task2.Value_intermediate{Item: in.StringWorkLoad},
-		// )
-	} else {
-		log.Fatalf("Failed to create key-value pair")
-	}
-	w.TaskChannel <- kv
+	// // Write the output to the file
+	// outputPath := fmt.Sprintf("reducerResults/%s.out", w.TaskDesc)
+	// err := utils.WriteOutputToFile(outputPath, reducedOutput)
+	// if err != nil {
+	// 	log.Printf("Error writing output to file: %v", err)
+	// 	return nil, err
+	// }
 
 	return &emptypb.Empty{}, nil
+
 }

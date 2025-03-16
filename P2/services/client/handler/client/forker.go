@@ -30,27 +30,23 @@ func ForkProcs(numMappers int, numReducers int) *Master {
 			defer wg.Done()
 
 			// Spawn process
-			cmd := exec.Command("make", "run-server", "TYPE=mapper", fmt.Sprintf("PORT=%d", port))
+			cmd := exec.Command("make", "run-server", "TYPE=mapper", fmt.Sprintf("PORT=%d", port), fmt.Sprintf("NUM_REDUCERS=%d", numReducers))
 			if err := cmd.Start(); err != nil {
 				errChan <- fmt.Errorf("failed to start mapper process on port %d: %v", port, err)
 				return
 			}
+			log.Printf("Started mapper process on port %d", port)
+			time.Sleep(5 * time.Second) 
+			log.Printf("Waited for 5 seconds %d", port)
 
 			// Wait for the server to start (retry mechanism)
 			addr := fmt.Sprintf("localhost:%d", port)
-			var conn *grpc.ClientConn
-			var err error
-			for retry := 0; retry < 5; retry++ {
-				conn, err = grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-				if err == nil {
-					break
-				}
-				time.Sleep(500 * time.Millisecond) // Wait before retrying
-			}
+			conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				errChan <- fmt.Errorf("failed to connect to mapper at %s: %v", addr, err)
 				return
 			}
+
 
 			// Store connection
 			master.MapperServers[ii] = pb.NewFileTransferClient(conn)
@@ -66,23 +62,18 @@ func ForkProcs(numMappers int, numReducers int) *Master {
 			defer wg.Done()
 
 			// Spawn process
-			cmd := exec.Command("make", "run-server", "TYPE=reducer", fmt.Sprintf("PORT=%d", port))
+			cmd := exec.Command("make", "run-server", "TYPE=reducer", fmt.Sprintf("PORT=%d", port), fmt.Sprintf("NUM_REDUCERS=%d", numReducers))
 			if err := cmd.Start(); err != nil {
 				errChan <- fmt.Errorf("failed to start reducer process on port %d: %v", port, err)
 				return
 			}
+			log.Printf("Started mapper process on port %d", port)
+			time.Sleep(5 * time.Second) 
+			log.Printf("Waited for 5 seconds %d", port)
 
 			// Wait for the server to start (retry mechanism)
 			addr := fmt.Sprintf("localhost:%d", port)
-			var conn *grpc.ClientConn
-			var err error
-			for retry := 0; retry < 5; retry++ {
-				conn, err = grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-				if err == nil {
-					break
-				}
-				time.Sleep(500 * time.Millisecond) // Wait before retrying
-			}
+			conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				errChan <- fmt.Errorf("failed to connect to reducer at %s: %v", addr, err)
 				return
