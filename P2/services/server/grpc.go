@@ -3,35 +3,48 @@ package main
 import (
 	"log"
 	"net"
+	// "fmt"
+	// "os"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 
 	pb "github.com/ujjwal-shekhar/mapreduce/services/common/genproto/comms"
+	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code"
 	"github.com/ujjwal-shekhar/mapreduce/services/server/handler/server"
 )
 
-func StartWorker(isMapper bool, port string) {
-	lis, err := net.Listen("tcp", port)
+func StartWorker(isMapper bool, port string, taskType string, workerServer *handler.Worker) {
+	lis, err := net.Listen("tcp", "localhost:"+port)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
+	log.Printf("Worker gRPC server is running on port %v", lis.Addr().String())
+
 	grpcServer := grpc.NewServer()
-	workerServer := NewWorker(isMapper)
-
+	
+	log.Printf("Worker server created")
 	pb.RegisterFileTransferServer(grpcServer, workerServer)
-	reflection.Register(grpcServer)
 
-	log.Printf("Worker gRPC server is running on port %s", port)
+	log.Printf("Worker server registered")
+
+	log.Printf("Worker gRPC server is running on port %s", lis.Addr().String())
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
+	log.Printf("Worker gRPC server is serving on port %s", lis.Addr().String())
 }
 
-func NewWorker(isMapper bool) *handler.Worker {
+func NewWorker(isMapper bool, taskType string, numReducers int) *handler.Worker {
+	taskDetails := usercode.GetTaskDetails(taskType)
+	if taskDetails == nil {
+		log.Fatalf("Task details not found for task: %s", taskType)
+	}
+	log.Printf("Task details found for task: %s | %v", taskType, taskDetails)
+
 	if isMapper {
-		return handler.NewMapper()
+		log.Printf("Creating new mapper")
+		return handler.NewMapper(taskDetails, taskType, numReducers)
 	} else {
-		return handler.NewReducer()
+		return handler.NewReducer(taskDetails, taskType, numReducers)
 	}
 }

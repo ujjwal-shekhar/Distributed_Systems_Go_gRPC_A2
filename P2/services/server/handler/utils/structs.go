@@ -2,7 +2,7 @@ package utils
 
 type ChunkMetadata struct {
 	FileName string
-	ChunkID int
-	ChunkSize int
+	ChunkID int32
+	ChunkData []byte
 }
 

@@ -34,7 +34,7 @@ func PickFirst(servers map[string]*pb.ServerInfo) *pb.ServerInfo {
 
 // LeastLoaded selects the server with the lowest CPU load.
 func LeastLoaded(servers map[string]*pb.ServerInfo) *pb.ServerInfo {
-	bestServer := &pb.ServerInfo{CpuLoad: 100, TaskLoad: 1000000}
+	bestServer := &pb.ServerInfo{CpuLoad: 100, TaskLoad: 1000000, Address: ""}
 	for _, server := range servers {
 		if server.CpuLoad < bestServer.CpuLoad {
 			bestServer = server
@@ -43,6 +43,9 @@ func LeastLoaded(servers map[string]*pb.ServerInfo) *pb.ServerInfo {
 		}
 	}
 
+	if bestServer.Address == "" {
+		return nil
+	}
 	return bestServer
 }
 

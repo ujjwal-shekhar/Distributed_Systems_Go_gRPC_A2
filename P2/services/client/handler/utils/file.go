@@ -1,16 +1,17 @@
 package utils
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"os"
-	"bufio"
+	"strings"
 	"sync"
-	"context"
 
-	"github.com/ujjwal-shekhar/mapreduce/services/common/utils"
 	"github.com/ujjwal-shekhar/mapreduce/services/client/handler/client"
 	pb "github.com/ujjwal-shekhar/mapreduce/services/common/genproto/comms"
+	"github.com/ujjwal-shekhar/mapreduce/services/common/utils"
 )
 
 // FileToMappersPipeline reads files from folderPath and sends chunks to chunkChannel.
@@ -52,6 +53,7 @@ func ReadFileInChunks(filePath string, chunkChannel chan ChunkMetadata) {
 	for {
 		n, err := reader.Read(buffer) // Read CHUNK_SIZE bytes at a time
 		log.Println("Read chunk of size: ", n)
+		// log.Printf("Read chunk: %s\n", buffer[:n])
 		if n > 0 {
 			chunkData := make([]byte, n)
 			copy(chunkData, buffer[:n])
@@ -62,7 +64,7 @@ func ReadFileInChunks(filePath string, chunkChannel chan ChunkMetadata) {
 				ChunkData:  chunkData,
 			}
 			
-			log.Printf("Sent Chunk: %d, Size: %d bytes\n", chunkID, n)
+			log.Printf("Sent Chunk: %d, Size: %d bytes to the channel\n", chunkID, n)
 			chunkID++
 		}
 
@@ -78,15 +80,14 @@ func ReadFileInChunks(filePath string, chunkChannel chan ChunkMetadata) {
 }
 
 func SendChunksToMappers(chunkChannel chan ChunkMetadata, master *client.Master) {
-	var mu sync.Mutex
 	mapperCount := len(master.MapperServers)
 	if mapperCount == 0 {
 		log.Println("No mapper servers available. Exiting chunk distribution.")
 		return
 	}
-
+	
 	i := 0 // Round-robin index
-
+	var mu sync.Mutex
 	for chunk := range chunkChannel {
 		mu.Lock()
 		mapper := master.MapperServers[i]
@@ -100,10 +101,14 @@ func SendChunksToMappers(chunkChannel chan ChunkMetadata, master *client.Master)
 
 		if err != nil {
 			log.Printf("Failed to send chunk %d of document %s to mapper %d: %v", 
-				chunk.ChunkID, chunk.DocumentID, i, err)
+				chunk.ChunkID,  
+				strings.Split(chunk.DocumentID, "/")[len(strings.Split(chunk.DocumentID, "/"))-1],
+				i, err)
 		} else {
 			log.Printf("Successfully sent chunk %d of document %s to mapper %d", 
-				chunk.ChunkID, chunk.DocumentID, i)
+			chunk.ChunkID,  
+			strings.Split(chunk.DocumentID, "/")[len(strings.Split(chunk.DocumentID, "/"))-1],
+			i)
 		}
 
 		// Round-robin selection of next mapper

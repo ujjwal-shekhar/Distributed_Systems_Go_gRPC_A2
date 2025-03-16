@@ -1,8 +1,11 @@
 */default.etcd/*
 
 P2/services/common/datasets/*.txt
+P2/services/common/temp_datasets/*.txt
+P2/tmp
 
 P3/*/*/cert/*.pem
 P3/*/*/cert/*.srl
 P3/*/*/cert/*.cnf
 P3/services/server/db/*.db
+

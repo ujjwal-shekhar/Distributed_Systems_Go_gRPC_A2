@@ -10,12 +10,10 @@ import (
 )
 
 // Have a go routine to send heartbeats to the lb
-
 func StartTaskServer() {
 	grpcServer := grpc.NewServer()
 	taskServer, lis := handler.NewServer()
 	pb.RegisterTaskRunnerServer(grpcServer, taskServer)
-
 	reflection.Register(grpcServer)
 
 	log.Printf("Task server listening on %s", taskServer.Address)

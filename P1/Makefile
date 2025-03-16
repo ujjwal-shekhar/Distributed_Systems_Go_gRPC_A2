@@ -4,6 +4,9 @@ run-client:
 run-server:
 	@go run services/server/*.go
 
+run-lb:
+	@go run services/lb_server/*.go
+
 gen:
 	@protoc \
 		--proto_path=protobuf "protobuf/service.proto" \

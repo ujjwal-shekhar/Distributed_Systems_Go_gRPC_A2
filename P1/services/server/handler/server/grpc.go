@@ -38,6 +38,7 @@ func NewServer() (*Server, net.Listener) {
 
 	// Make this my address in info
 	serverAddr := fmt.Sprintf("localhost:%d", lis.Addr().(*net.TCPAddr).Port)
+	log.Printf("Server address: %s", serverAddr)
 
 	// Connect to etcd
 	cli, err := clientv3.New(clientv3.Config{
@@ -47,25 +48,28 @@ func NewServer() (*Server, net.Listener) {
 	if err != nil {
 		log.Fatalf("Failed to connect to etcd: %v", err)
 	}
+	log.Print("Connected to etcd")
 
 	// Register with etcd
 	leaseResp, err := cli.Grant(context.Background(), constants.TTL)
 	if err != nil {
 		log.Fatalf("Failed to grant lease: %v", err)
 	}
+	log.Printf("Granted lease %d", leaseResp.ID)
 
 	_, err = cli.Put(context.Background(), constants.ETCD_SERVERS_PREFIX+serverAddr, serverAddr, clientv3.WithLease(leaseResp.ID))
 	if err != nil {
 		log.Fatalf("Failed to register with etcd: %v", err)
 	}
+	log.Printf("Registered with etcd")
 
 	// Connect to the load balancer
 	conn, err := grpc.NewClient(constants.LB_PORT, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to load balancer: %v", err)
 	}
-
 	lbClient := pb.NewLoadBalancerClient(conn)
+	log.Printf("Connected to load balancer")
 
 	go func() {
 		keepAliveChan, err := cli.KeepAlive(context.Background(), leaseResp.ID)
@@ -78,7 +82,7 @@ func NewServer() (*Server, net.Listener) {
 				log.Println("Lease expired!")
 				return
 			}
-			log.Printf("Lease renewed for server %s", serverAddr)
+			// log.Printf("Lease renewed for server %s", serverAddr)
 		}
 	}()
 
@@ -117,6 +121,8 @@ func (s *Server) RunTask(ctx context.Context, req *pb.ClientRequest) (*pb.Server
 
 	log.Printf("Starting task on %s (current TaskLoad: %d)", s.Address, s.TaskLoad)
 
+	resultCh := make(chan *pb.ServerReply)
+
 	// Run FakeTask in a new goroutine
 	go func() {
 		utils.FakeTask(req.Load)
@@ -126,7 +132,9 @@ func (s *Server) RunTask(ctx context.Context, req *pb.ClientRequest) (*pb.Server
 		s.mu.Unlock()
 
 		log.Printf("Finished task on %s (current TaskLoad: %d)", s.Address, s.TaskLoad)
+
+		resultCh <- &pb.ServerReply{Success: true}
 	}()
 
-	return &pb.ServerReply{Success : true}, nil
+	return <-resultCh, nil
 }

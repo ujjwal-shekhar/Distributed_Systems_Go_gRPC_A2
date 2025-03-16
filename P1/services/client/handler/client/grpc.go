@@ -36,14 +36,12 @@ func NewClient () *Client {
 
 func (c *Client) Run() {
 	// Lets ask the lb for address of a task runner server
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	resp, err := c.LoadBalancerClient.ProcessClientRequest(ctx, &pb.ClientRequest{Load: c.Load})
 	if err != nil {
 		log.Fatalf("Failed to get task runner: %v", err)
 	}
-
 	log.Println("Got response from lb: ", resp)
 
 	// Connect to the task runner
@@ -54,11 +52,12 @@ func (c *Client) Run() {
 	taskRunnerClient := pb.NewTaskRunnerClient(conn)
 
 	// Send the task load to the task runner
+	log.Printf("Sending task load to task runner: %s at time %v", resp.Address, time.Now().Unix())
 	_, err = taskRunnerClient.RunTask(ctx, &pb.ClientRequest{Load: c.Load})
 
 	if err != nil {
 		log.Fatalf("Failed to send task load: %v", err)
+	} else {
+		log.Printf("Finished task load on task runner: %s at time %v", resp.Address, time.Now().Unix())
 	}
-
-	log.Printf("Task load sent to task runner: %s", resp.Address)
 }
