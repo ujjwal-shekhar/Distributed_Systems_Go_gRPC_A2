@@ -13,7 +13,7 @@ import (
 	pb "github.com/ujjwal-shekhar/mapreduce/services/common/genproto/comms"
 )
 
-func ForkProcs(numMappers int, numReducers int) *Master {
+func ForkProcs(numMappers int, numReducers int, taskDesc string) *Master {
 	master := &Master{
 		MapperServers:  make([]pb.FileTransferClient, numMappers),
 		ReducerServers: make([]pb.FileTransferClient, numReducers),
@@ -30,11 +30,19 @@ func ForkProcs(numMappers int, numReducers int) *Master {
 			defer wg.Done()
 
 			// Spawn process
-			cmd := exec.Command("make", "run-server", "TYPE=mapper", fmt.Sprintf("PORT=%d", port), fmt.Sprintf("NUM_REDUCERS=%d", numReducers))
+			cmd := exec.Command(
+				"make", "run-server", 
+				"TYPE=mapper", 
+				fmt.Sprintf("PORT=%d", port), 
+				fmt.Sprintf("NUM_REDUCERS=%d", numReducers),
+				fmt.Sprintf("TASK=%s", taskDesc),
+			)
+
 			if err := cmd.Start(); err != nil {
 				errChan <- fmt.Errorf("failed to start mapper process on port %d: %v", port, err)
 				return
 			}
+			
 			log.Printf("Started mapper process on port %d", port)
 			time.Sleep(5 * time.Second) 
 			log.Printf("Waited for 5 seconds %d", port)
@@ -46,8 +54,7 @@ func ForkProcs(numMappers int, numReducers int) *Master {
 				errChan <- fmt.Errorf("failed to connect to mapper at %s: %v", addr, err)
 				return
 			}
-
-
+	
 			// Store connection
 			master.MapperServers[ii] = pb.NewFileTransferClient(conn)
 			log.Printf("Connected to mapper at %s", addr)
@@ -62,11 +69,20 @@ func ForkProcs(numMappers int, numReducers int) *Master {
 			defer wg.Done()
 
 			// Spawn process
-			cmd := exec.Command("make", "run-server", "TYPE=reducer", fmt.Sprintf("PORT=%d", port), fmt.Sprintf("NUM_REDUCERS=%d", numReducers))
+			cmd := exec.Command(
+				"make", 
+				"run-server", 
+				"TYPE=reducer", 
+				fmt.Sprintf("PORT=%d", port), 
+				fmt.Sprintf("NUM_REDUCERS=%d", numReducers),
+				fmt.Sprintf("TASK=%s", taskDesc),
+			)
+
 			if err := cmd.Start(); err != nil {
 				errChan <- fmt.Errorf("failed to start reducer process on port %d: %v", port, err)
 				return
 			}
+
 			log.Printf("Started mapper process on port %d", port)
 			time.Sleep(5 * time.Second) 
 			log.Printf("Waited for 5 seconds %d", port)

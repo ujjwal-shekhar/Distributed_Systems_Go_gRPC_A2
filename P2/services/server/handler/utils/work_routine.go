@@ -34,7 +34,7 @@ func ReduceByKey(sorted_kv []KV, taskDesc string) []ReducedKV {
 				if err != nil {
 					log.Fatalf("Error converting value to int: %v", err)
 				}
-				currentValue[0] = string(val + 1)
+				currentValue[0] = strconv.Itoa(val + 1)
 			} else if taskDesc == "invertedindex" {
 				currentValue = append(currentValue, kv.Value)
 			}

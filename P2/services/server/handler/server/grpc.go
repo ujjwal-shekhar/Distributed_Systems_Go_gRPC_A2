@@ -103,8 +103,9 @@ func (w *Worker) SendToReducer(ctx context.Context, req *pb.FileInfo) (*emptypb.
 	// Lets read this file line by line, the key values are tab separated
 	// We will split the line by tab and then store the key value pair in 
 	// the worker map
+	kv, err := utils.ReadIntermediateFile(filePath)
 	w.mu.Lock()
-	err := utils.ReadIntermediateFile(filePath, w.ReducerList)
+	w.ReducerList = append(w.ReducerList, kv...)
 	w.mu.Unlock()
 	
 	if err != nil {
@@ -116,22 +117,23 @@ func (w *Worker) SendToReducer(ctx context.Context, req *pb.FileInfo) (*emptypb.
 }
 
 func (w *Worker) Vomit(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
-	// // Reduce the intermediate data
-	// w.mu.Lock()
-	// output := w.ReducerList
-	// w.mu.Unlock()
+	// Reduce the intermediate data
+	w.mu.Lock()
+	output := w.ReducerList
+	w.mu.Unlock()
 
-	// // Sort and reduce the data
-	// sortedOutput := utils.SortKV(output)
-	// reducedOutput := utils.ReduceByKey(sortedOutput, w.TaskDesc)
+	// Sort and reduce the data
+	sortedOutput := utils.SortKV(output)
+	log.Printf("Sorted output: %v", sortedOutput)
+	reducedOutput := utils.ReduceByKey(sortedOutput, w.TaskDesc)
 
-	// // Write the output to the file
-	// outputPath := fmt.Sprintf("reducerResults/%s.out", w.TaskDesc)
-	// err := utils.WriteOutputToFile(outputPath, reducedOutput)
-	// if err != nil {
-	// 	log.Printf("Error writing output to file: %v", err)
-	// 	return nil, err
-	// }
+	// Write the output to the file
+	outputPath := fmt.Sprintf("reducerResults/%s-%d.out", w.TaskDesc, w.PortNumber - 6000)
+	err := utils.WriteOutputToFile(outputPath, reducedOutput)
+	if err != nil {
+		log.Printf("Error writing output to file: %v", err)
+		return nil, err
+	}
 
 	return &emptypb.Empty{}, nil
 

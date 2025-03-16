@@ -3,6 +3,8 @@
 P2/services/common/datasets/*.txt
 P2/services/common/temp_datasets/*.txt
 P2/tmp
+P2/mapResults
+P2/reducerResults
 
 P3/*/*/cert/*.pem
 P3/*/*/cert/*.srl

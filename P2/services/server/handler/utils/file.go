@@ -45,13 +45,15 @@ type KV struct {
 	Value string
 }
 
-func ReadIntermediateFile(filePath string, kv []KV) error {
+func ReadIntermediateFile(filePath string) ([]KV, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Printf("Error opening file %s: %v", filePath, err)
-		return err
+		return nil, err
 	}
 	defer file.Close()
+
+	var kv []KV
 
 	// Use bufio for proper buffered reading
 	reader := bufio.NewReader(file)
@@ -62,7 +64,7 @@ func ReadIntermediateFile(filePath string, kv []KV) error {
 				log.Println("Finished reading file:", filePath)
 			} else {
 				log.Printf("Error reading file %s: %v", filePath, err)
-				return err
+				return nil, err
 			}
 			break
 		}
@@ -74,9 +76,11 @@ func ReadIntermediateFile(filePath string, kv []KV) error {
 			continue
 		}
 		kv = append(kv, KV{Key: parts[0], Value: parts[1]})
+
+		log.Printf("Read key-value pair: %s -> %s", parts[0], parts[1])
 	}
 
-	return nil
+	return kv, nil
 }
 
 type ReducedKV struct {
@@ -85,15 +89,23 @@ type ReducedKV struct {
 }
 
 func WriteOutputToFile(filePath string, kv []ReducedKV) error {
-	file, err := os.Create(filePath)
+	// Ensure the directory exists
+	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+		log.Printf("Error creating directory: %v", err)
+		return err
+	}
+
+	// Open the file in append mode (or create it if it doesn't exist)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Printf("Error creating file %s: %v", filePath, err)
+		log.Printf("Error opening file %s: %v", filePath, err)
 		return err
 	}
 	defer file.Close()
 
 	// Write the key-value pairs to the output file
 	for _, rkv := range kv {
+		log.Printf("Writing key-value pair: %s -> %s", rkv.Key, strings.Join(rkv.Value, ","))
 		if _, err := file.WriteString(fmt.Sprintf("%s : %s\n", rkv.Key, strings.Join(rkv.Value, ","))); err != nil {
 			log.Printf("Error writing to file %s: %v", filePath, err)
 			return err

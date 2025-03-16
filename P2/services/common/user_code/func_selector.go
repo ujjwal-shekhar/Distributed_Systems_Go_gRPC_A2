@@ -2,6 +2,7 @@ package usercode
 
 import (
 	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code/Task1"
+	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code/Task2"
 	"github.com/ujjwal-shekhar/mapreduce/services/common/user_code/template"
 )
 
@@ -24,6 +25,14 @@ func GetTaskDetails(taskName string) *UserTaskDetails {
 			KV_inType:             &task1.KV_in{},
 			KV_intermediateType:   &task1.KV_intermediate{},
 			KV_outType:            &task1.KV_out{},
+		}
+	case "invertedindex":
+		return &UserTaskDetails{
+			Mapper:                task2.Map,
+			Reducer:               task2.Reduce,
+			KV_inType:             &task2.KV_in{},
+			KV_intermediateType:   &task2.KV_intermediate{},
+			KV_outType:            &task2.KV_out{},
 		}
 	default:
 		return nil

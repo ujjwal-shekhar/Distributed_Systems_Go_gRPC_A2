@@ -9,6 +9,6 @@ type Master struct {
 	ReducerServers 	[]pb.FileTransferClient
 }
 
-func NewMaster(numMappers int, numReducers int) *Master {
-	return ForkProcs(numMappers, numReducers)
+func NewMaster(numMappers int, numReducers int, taskDesc string) *Master {
+	return ForkProcs(numMappers, numReducers, taskDesc)
 }

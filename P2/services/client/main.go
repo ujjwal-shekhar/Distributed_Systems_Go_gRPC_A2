@@ -23,7 +23,7 @@ func main() {
 	log.Printf("Mappers: %d, Reducers: %d, Task ID: %s", *M, *R, *T)
 
 	// Lets create a master
-	master := client.NewMaster(*M, *R)
+	master := client.NewMaster(*M, *R, *T)
 	log.Println("Master created")
 	time.Sleep(5 * time.Second)
 
@@ -65,5 +65,5 @@ func main() {
 	// for _, conn := range master.ReducerServers {
 	// 	conn.Close()
 	// }
-	select {}
+	// select {}
 }
