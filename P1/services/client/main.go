@@ -5,10 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	// "github.com/ujjwal-shekhar/load_balancer/services/common/utils/constants"
 	"github.com/ujjwal-shekhar/load_balancer/services/client/handler/client"
-	// "google.golang.org/grpc"
-	// "google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {

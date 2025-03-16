@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 
 	pb "github.com/ujjwal-shekhar/mapreduce/services/common/genproto/comms"
@@ -137,4 +138,10 @@ func (w *Worker) Vomit(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, e
 
 	return &emptypb.Empty{}, nil
 
+}
+
+func (w *Worker) Close (ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
+	log.Printf("Worker closed")
+	os.Exit(0)
+	return &emptypb.Empty{}, nil
 }

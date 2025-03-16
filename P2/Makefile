@@ -1,5 +1,5 @@
 run-client:
-	@go run services/client/*.go -M=$(M) -R=$(R) -T=$(T)
+	@go run services/client/*.go -R=$(R) -T=$(T)
 
 run-server:
 	@go run services/server/*.go -TYPE=$(TYPE) -PORT=$(PORT) -NUM_REDUCERS=$(NUM_REDUCERS) -TASK=$(TASK)
@@ -15,7 +15,7 @@ clean:
 	@rm -rf ./mapResults/*
 	@rm -rf ./reducerResults/*
 	@echo "Killing processes holding ports 5000-5100 and 6000-6100..."
-	@for port in $$(seq 5000 5100) $$(seq 6001 6100); do \
+	@for port in $$(seq 5000 5100) $$(seq 6000 6100); do \
 		PID=$$(lsof -t -i :$$port); \
 		if [ -n "$$PID" ]; then \
 			echo "Killing process $$PID holding port $$port"; \

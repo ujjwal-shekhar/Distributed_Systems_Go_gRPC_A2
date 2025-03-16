@@ -2,16 +2,17 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log"
+	"os"
 	"sync"
 	"time"
-	"errors"
 
 	"go.etcd.io/etcd/client/v3"
 
 	pb "github.com/ujjwal-shekhar/load_balancer/services/common/genproto/comms"
-	"github.com/ujjwal-shekhar/load_balancer/services/lb_server/handler/utils"
 	"github.com/ujjwal-shekhar/load_balancer/services/common/utils/constants"
+	"github.com/ujjwal-shekhar/load_balancer/services/lb_server/handler/utils"
 )
 
 // LoadBalancer struct
@@ -104,7 +105,16 @@ func (lb *LoadBalancer) ProcessClientRequest(ctx context.Context, req *pb.Client
 	if server == nil {
 		return nil, errors.New("no servers available")
 	}
+	log.Printf("Selected server: %s for load: %d", server.Address, req.Load)
 
-	log.Printf("Selected server: %s", server.Address)
+	// Log the selected server and the client's task load to server.log
+	file, err := os.OpenFile("server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("Failed to open server.log: %v", err)
+	}
+	defer file.Close()
+
+	logger := log.New(file, "", log.LstdFlags)
+	logger.Printf("Selected server: %s for load: %d", server.Address, req.Load)
 	return server, nil
 }

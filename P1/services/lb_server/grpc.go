@@ -12,14 +12,14 @@ import (
 	"github.com/ujjwal-shekhar/load_balancer/services/lb_server/handler/lb"
 )
 
-func StartLBServer() {
+func StartLBServer(policy string) {
 	lis, err := net.Listen("tcp", constants.LB_PORT)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
-	loadBalancer := handler.NewLoadBalancer("least_loaded")
+	loadBalancer := handler.NewLoadBalancer(policy)
 	pb.RegisterLoadBalancerServer(grpcServer, loadBalancer)
 
 	reflection.Register(grpcServer)

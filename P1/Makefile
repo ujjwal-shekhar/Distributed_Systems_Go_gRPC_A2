@@ -5,7 +5,7 @@ run-server:
 	@go run services/server/*.go
 
 run-lb:
-	@go run services/lb_server/*.go
+	@go run services/lb_server/*.go POLICY=$(POLICY)
 
 gen:
 	@protoc \

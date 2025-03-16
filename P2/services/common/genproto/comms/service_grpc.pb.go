@@ -23,6 +23,7 @@ const (
 	FileTransfer_SendToMapper_FullMethodName  = "/FileTransfer/SendToMapper"
 	FileTransfer_SendToReducer_FullMethodName = "/FileTransfer/SendToReducer"
 	FileTransfer_Vomit_FullMethodName         = "/FileTransfer/Vomit"
+	FileTransfer_Close_FullMethodName         = "/FileTransfer/Close"
 )
 
 // FileTransferClient is the client API for FileTransfer service.
@@ -32,6 +33,7 @@ type FileTransferClient interface {
 	SendToMapper(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[FileChunk, FileInfo], error)
 	SendToReducer(ctx context.Context, in *FileInfo, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Vomit(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Close(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type fileTransferClient struct {
@@ -75,6 +77,16 @@ func (c *fileTransferClient) Vomit(ctx context.Context, in *emptypb.Empty, opts 
 	return out, nil
 }
 
+func (c *fileTransferClient) Close(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, FileTransfer_Close_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FileTransferServer is the server API for FileTransfer service.
 // All implementations must embed UnimplementedFileTransferServer
 // for forward compatibility.
@@ -82,6 +94,7 @@ type FileTransferServer interface {
 	SendToMapper(grpc.ClientStreamingServer[FileChunk, FileInfo]) error
 	SendToReducer(context.Context, *FileInfo) (*emptypb.Empty, error)
 	Vomit(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	Close(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	mustEmbedUnimplementedFileTransferServer()
 }
 
@@ -100,6 +113,9 @@ func (UnimplementedFileTransferServer) SendToReducer(context.Context, *FileInfo)
 }
 func (UnimplementedFileTransferServer) Vomit(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Vomit not implemented")
+}
+func (UnimplementedFileTransferServer) Close(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
 }
 func (UnimplementedFileTransferServer) mustEmbedUnimplementedFileTransferServer() {}
 func (UnimplementedFileTransferServer) testEmbeddedByValue()                      {}
@@ -165,6 +181,24 @@ func _FileTransfer_Vomit_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FileTransfer_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileTransferServer).Close(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileTransfer_Close_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileTransferServer).Close(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FileTransfer_ServiceDesc is the grpc.ServiceDesc for FileTransfer service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -179,6 +213,10 @@ var FileTransfer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Vomit",
 			Handler:    _FileTransfer_Vomit_Handler,
+		},
+		{
+			MethodName: "Close",
+			Handler:    _FileTransfer_Close_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

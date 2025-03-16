@@ -15,18 +15,18 @@ import (
 
 func main() {
 	// We parse CLI args
-	M := flag.Int("M", 5, "M : Number of mappers")
 	R := flag.Int("R", 5, "R : Number of reducers")
 	T := flag.String("T", "wordcount", "T : Task ID")
 	flag.Parse()
-
-	log.Printf("Mappers: %d, Reducers: %d, Task ID: %s", *M, *R, *T)
+	
+	// M := flag.Int("M", 5, "M : Number of mappers")
+	M := utils.CountFilesInFolder(helpers.DATASET_PATH)
+	log.Printf("Mappers: %d, Reducers: %d, Task ID: %s", M, *R, *T)
 
 	// Lets create a master
-	master := client.NewMaster(*M, *R, *T)
+	master := client.NewMaster(M, *R, *T)
 	log.Println("Master created")
 	time.Sleep(5 * time.Second)
-
 
 	// Begin the pipeline : master -> mappers
 	var wg sync.WaitGroup
@@ -58,12 +58,12 @@ func main() {
 	// then collect them here in a single output file
 	log.Println("Client done")
 
-	// // Close all connections
-	// for _, conn := range master.MapperServers {
-	// 	conn.Close()
-	// }
-	// for _, conn := range master.ReducerServers {
-	// 	conn.Close()
-	// }
+	// Close all connections
+	for _, conn := range master.MapperServers {
+		conn.Close(context.Background(), &emptypb.Empty{})
+	}
+	for _, conn := range master.ReducerServers {
+		conn.Close(context.Background(), &emptypb.Empty{})
+	}
 	// select {}
 }

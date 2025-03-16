@@ -116,3 +116,19 @@ func ReadFileInChunks(filePath string, mapperId int, master *client.Master) {
 		}
 	}
 }
+
+func CountFilesInFolder(folderPath string) int {
+	files, err := os.ReadDir(folderPath)
+	if err != nil {
+		log.Fatalf("Error reading folder %s: %v", folderPath, err)
+	}
+
+	count := 0
+	for _, file := range files {
+		if !file.IsDir() {
+			count++
+		}
+	}
+
+	return count
+}
