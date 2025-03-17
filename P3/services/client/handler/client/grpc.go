@@ -58,7 +58,7 @@ func NewClientWithPassword(username string, bankname string, password string,
 		grpc.WithChainUnaryInterceptor(
 			auth.TokenUnaryInterceptor(resp.Token),
 			tm.IdempotencyKeyUnaryInterceptor(),
-			// logging.LoggerUnaryInterceptor(),
+			auth.LoggerUnaryInterceptor(),
 		),
 	)
 
@@ -88,7 +88,7 @@ func (c *Client) Balance() (int32, error) {
 		},
 	)
 	if err != nil {
-		log.Fatalf("Failed to get balance: %v", err)
+		log.Printf("Failed to get balance: %v", err)
 		return 0, err
 	}
 	log.Printf("Balance of %s: %d\n", c.username, resp.Balance)
@@ -108,7 +108,7 @@ func (c *Client) MakePayment(amount int32, recipient_username string, recipient_
 		},
 	)
 	if err != nil || !resp.Success {
-		log.Fatalf("Failed to make payment: %v", err)
+		log.Printf("Failed to make payment: %v", err)
 		return err
 	}
 	log.Printf("Payment of %d to %s @ %s successful\n", 

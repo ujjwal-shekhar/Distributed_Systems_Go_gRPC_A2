@@ -19,6 +19,7 @@ type BankServer struct {
 	gatewayClient pb.StripeServiceClient
 	Bankname 	  string
 	Address 	  string
+	Crm     	  *CachedResponseMap
 }
 
 func NewBankServerTLS(bankname string, tlsCreds credentials.TransportCredentials) (*BankServer, error) {
@@ -36,6 +37,7 @@ func NewBankServerTLS(bankname string, tlsCreds credentials.TransportCredentials
 		gatewayClient: gatewayClient,
 		Bankname: bankname,
 		Address: "",
+		Crm: NewCachedResponseMap(),
 	}, nil
 }
 

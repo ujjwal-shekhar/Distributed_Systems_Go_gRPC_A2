@@ -57,8 +57,12 @@ func StartBankServer(bankname string, reqPath string, keyPath string) {
 	InformGateway(bankname, lis.Addr().String(), tlsCreds)
 
 	// Create a new bank server
-	grpcServer := grpc.NewServer(grpc.Creds(tlsCreds))
 	bankServer, err := bank.NewBankServerTLS(bankname, tlsCreds)
+	grpcServer := grpc.NewServer(grpc.Creds(tlsCreds),
+		grpc.ChainUnaryInterceptor(
+			bankServer.Crm.IdempotencyKeyUnaryInterceptor,
+		),
+	)
 	if err != nil {
 		log.Fatalf("Failed to create bank server: %v", err)
 	}

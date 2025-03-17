@@ -9,7 +9,7 @@ import (
 )
 
 // UnaryInterceptor to inject JWT token into metadata
-func TokenUnaryInterceptor(token string, ) grpc.UnaryClientInterceptor {
+func TokenUnaryInterceptor(token string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
