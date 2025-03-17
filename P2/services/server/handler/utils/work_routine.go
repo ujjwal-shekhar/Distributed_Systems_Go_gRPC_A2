@@ -3,6 +3,7 @@ package utils
 import (
 	"hash/fnv"
 	"log"
+	"slices"
 	"sort"
 	"strconv"
 )
@@ -36,7 +37,11 @@ func ReduceByKey(sorted_kv []KV, taskDesc string) []ReducedKV {
 				}
 				currentValue[0] = strconv.Itoa(val + 1)
 			} else if taskDesc == "invertedindex" {
-				currentValue = append(currentValue, kv.Value)
+				// currentValue = append(currentValue, kv.Value)
+				// Append if not already present
+				if !slices.Contains(currentValue, kv.Value) {
+					currentValue = append(currentValue, kv.Value)
+				}
 			}
 		} else {
 			if currentKey != "" {
