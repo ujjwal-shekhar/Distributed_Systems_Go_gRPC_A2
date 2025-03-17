@@ -1,0 +1,14 @@
+syntax="proto3";
+import "google/protobuf/empty.proto";
+option go_package = "github.com/ujjwal-shekhar/common/bft";
+
+service OM {
+    rpc SendValue (Value) returns (google.protobuf.Empty) {}
+}
+
+message Value {
+    int32 round = 1;
+    int32 sender = 2;
+    bool attack = 3;
+    bool isCommander = 4;
+}
