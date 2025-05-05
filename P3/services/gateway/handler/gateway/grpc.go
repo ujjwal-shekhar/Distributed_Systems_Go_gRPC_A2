@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/ujjwal-shekhar/stripe-clone/services/common/genproto/comms"
 	"github.com/ujjwal-shekhar/stripe-clone/services/gateway/handler/auth"
@@ -207,28 +209,31 @@ func (s *PaymentGatewayServer) MakePayment(ctx context.Context, req *pb.MakePaym
 	log.Printf("MakePayment: Final vote: %v | Starting Commit/Rollback", finalVote)
 
 	// Based on the votes gathered we will send the commit/rollback
-	senderBank.Client.PersistPayment(
-		ctx, &pb.PersistPaymentRequest{
-			Username: req.SenderUsername,
-			Amount: req.Amount,
-			ToCommit: true,
-			IsSender: true,
-		},
-	)
-	receiverBank.Client.PersistPayment(
-		ctx, &pb.PersistPaymentRequest{
-			Username: req.ReceiverUsername,
-			Amount: req.Amount,
-			ToCommit: true,
-			IsSender: false,
-		},
-	)
+	if finalVote {
+		senderBank.Client.PersistPayment(
+			ctx, &pb.PersistPaymentRequest{
+				Username: req.SenderUsername,
+				Amount: req.Amount,
+				ToCommit: true,
+				IsSender: true,
+			},
+		)
+		receiverBank.Client.PersistPayment(
+			ctx, &pb.PersistPaymentRequest{
+				Username: req.ReceiverUsername,
+				Amount: req.Amount,
+				ToCommit: true,
+				IsSender: false,
+			},
+		)
+	}
 
 	if finalVote {
 		log.Printf("MakePayment: Commit successful for both banks")
 		return &pb.MakePaymentResponse{Success: true}, nil
 	} else {
 		log.Printf("MakePayment: Rollback successful for both banks")
-		return &pb.MakePaymentResponse{Success: false}, nil
+		return &pb.MakePaymentResponse{Success: false}, 
+			   status.Error(codes.Unavailable, "Transaction aborted")
 	}
 }

@@ -18,9 +18,8 @@ func StartTaskServer() {
 
 	log.Printf("Task server listening on %s", taskServer.Address)
 
+	go taskServer.SendHeartbeats()
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
-
-	go taskServer.SendHeartbeats()
 }

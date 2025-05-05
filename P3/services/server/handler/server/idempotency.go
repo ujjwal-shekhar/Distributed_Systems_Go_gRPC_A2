@@ -6,7 +6,9 @@ import (
 	"sync"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 type CachedResponse struct {
@@ -47,7 +49,9 @@ func (crm *CachedResponseMap) IdempotencyKeyUnaryInterceptor(ctx context.Context
 	resp, err := handler(ctx, req)
 
 	crm.mu.Lock()////////
-	crm.m[idempotencyKey[0]] = CachedResponse{Resp: resp, Err: err}
+	if (status.Code(err) != codes.Unavailable) {
+		crm.m[idempotencyKey[0]] = CachedResponse{Resp: resp, Err: err}
+	}
 	crm.mu.Unlock()//////
 
 	log.Printf("IdempotencyKeyUnaryInterceptor: Caching response for %s", idempotencyKey)

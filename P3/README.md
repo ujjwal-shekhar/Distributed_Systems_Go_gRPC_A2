@@ -62,4 +62,4 @@ Only paying another user is allowed in this setup. The sender specifies the user
 
 As mentioned on the wikipedia page, if both the gateway and a bank server fail, it is impossible to recover and is usually done manually by tracing logs. If the coordinator fails then either a vote is not tried or a commit never happens both of which are safe. If a bank server does not fail indefinitely then the commit/rollback will eventually reach it and finish the transaction and/or the vote will eventually be taken. Below is an image of the flow summarizing everything above.
 
-![Bank <-> Gateway](image-1.png)
+![Bank <-> Gateway](doc/img/f3.png)
